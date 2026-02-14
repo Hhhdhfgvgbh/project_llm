@@ -1,0 +1,36 @@
+name: Bug report
+description: Сообщить о проблеме в приложении
+title: "[BUG] "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Что случилось?
+      placeholder: Кратко опишите баг.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Шаги воспроизведения
+      placeholder: |
+        1. Запустил ...
+        2. Нажал ...
+        3. Получил ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Ожидаемое поведение
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Версия/commit
+      placeholder: например, b76f111
