@@ -1,12 +1,12 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+requires = ["setuptools>=61", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "project-llm"
 version = "0.1.0"
 description = "Local multi-GGUF pipeline orchestrator"
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 dependencies = [
   "pydantic>=2.7,<3",
   "PyYAML>=6.0,<7",
@@ -20,3 +20,11 @@ dev = [
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
+
+
+[project.scripts]
+project-llm = "app.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+exclude = ["config*"]

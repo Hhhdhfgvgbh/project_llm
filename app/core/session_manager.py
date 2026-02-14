@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass
-from datetime import datetime, UTC
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -24,7 +24,7 @@ class SessionManager:
         self.root.mkdir(parents=True, exist_ok=True)
 
     def create_session(self) -> Path:
-        session_id = datetime.now(UTC).strftime("session_%Y%m%d_%H%M%S")
+        session_id = datetime.now(timezone.utc).strftime("session_%Y%m%d_%H%M%S")
         target = self.root / session_id
         target.mkdir(parents=True, exist_ok=False)
         return target
@@ -46,7 +46,7 @@ class SessionManager:
             stage_id=stage_id,
             version=version,
             parent_version=parent_version,
-            timestamp=datetime.now(UTC).isoformat(),
+            timestamp=datetime.now(timezone.utc).isoformat(),
             input_hash=self._stable_hash(input_payload),
             config_hash=self._stable_hash(config_payload),
         )
