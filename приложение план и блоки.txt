@@ -1,0 +1,220 @@
+ЧАСТЬ 2. Обновлённый план реализации
+ЭТАП 1 — Базовая инфраструктура
+
+llama.cpp + CUDA
+
+llama-cpp-python
+
+тест single-model inference
+
+ЭТАП 2 — Model Registry
+
+Реализовать:
+
+загрузку models.yaml
+
+проверку наличия файлов
+
+фильтрацию недоступных моделей
+
+логирование
+
+Результат:
+
+runtime-реестр доступных моделей
+
+ЭТАП 3 — Resource Manager
+
+оценка RAM/VRAM
+
+расчёт допустимых комбинаций
+
+fallback режимы
+
+проверка перед запуском шага
+
+ЭТАП 4 — Model Wrapper
+
+Методы:
+
+load()
+
+unload()
+
+generate()
+
+estimate_memory()
+
+ЭТАП 5 — Pipeline Engine
+
+Поддержка:
+
+фиксированного pipeline.yaml
+
+произвольного pipeline (manual mode)
+
+нескольких моделей на шаге
+
+разных типов агрегации
+
+ЭТАП 6 — Aggregation Engine
+
+Реализовать:
+
+concat
+
+vote
+
+synthesis (через отдельную модель)
+
+шаблонный merge
+
+ЭТАП 7 — Session Manager
+
+создание сессии
+
+сохранение шагов
+
+загрузка истории
+
+snapshot конфигурации
+
+ЭТАП 8 — Sequential Mode
+
+Реализация:
+
+загрузка модели
+
+инференс
+
+выгрузка
+
+ЭТАП 9 — Persistent Mode
+
+кеш моделей
+
+LRU
+
+контроль памяти
+
+ЭТАП 10 — UI (Streamlit)
+Вкладки:
+
+Base Pipeline
+
+Manual Builder
+
+History
+
+Models Status
+
+ЧАСТЬ 3. Архитектура приложения
+1️⃣ Core Layer
+ModelRegistry
+
+читает models.yaml
+
+проверяет наличие файлов
+
+хранит доступные модели
+
+сообщает о missing models
+
+ModelWrapper
+
+загрузка GGUF
+
+выгрузка
+
+инференс
+
+контроль параметров
+
+ResourceManager
+
+RAM/VRAM мониторинг
+
+проверка комбинаций моделей
+
+2️⃣ Pipeline Layer
+BasePipelineExecutor
+
+реализует фиксированный pipeline.yaml
+
+проверяет обязательные модели
+
+блокирует запуск при их отсутствии
+
+ManualPipelineBuilder
+
+создаёт pipeline из UI
+
+валидирует шаги
+
+проверяет ресурсы
+
+PipelineEngine
+
+общий движок
+
+исполняет шаги
+
+вызывает агрегацию
+
+AggregationEngine
+
+concat
+
+vote
+
+synthesis
+
+custom merge
+
+3️⃣ Storage Layer
+SessionManager
+
+создаёт директории
+
+сохраняет JSON
+
+хранит snapshot конфигов
+
+4️⃣ Interface Layer
+Streamlit UI
+
+Взаимодействует с:
+
+ModelRegistry
+
+PipelineEngine
+
+SessionManager
+
+5️⃣ Связи между блоками
+UI
+ ↓
+ManualPipelineBuilder / BasePipelineExecutor
+ ↓
+PipelineEngine
+ ↓
+ModelWrapper
+ ↓
+ResourceManager
+ ↓
+SessionManager
+Логика запуска приложения
+
+При старте:
+
+Загружается models.yaml
+
+Проверяется директория моделей
+
+Формируется список доступных моделей
+
+Проверяется базовый pipeline:
+
+если отсутствует обязательная модель → блокируется Base Mode
+
+UI получает список доступных моделей
