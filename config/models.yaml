@@ -1,0 +1,23 @@
+version: 1
+models_directory: "./models"
+defaults:
+  n_ctx: 8192
+  n_gpu_layers: 0
+  temperature: 0.7
+  top_p: 0.95
+  max_tokens: 1024
+  threads: 8
+models:
+  llama3_q5:
+    file: "llama3_q5.gguf"
+    description: "Llama 3 8B Q5_K_M"
+    quantization: "Q5_K_M"
+    required_for_base: true
+    overrides:
+      n_ctx: 16384
+      n_gpu_layers: 35
+  mistral_q4:
+    file: "mistral_q4.gguf"
+    description: "Mistral 7B Q4_K_M"
+    quantization: "Q4_K_M"
+    required_for_base: false

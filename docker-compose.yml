@@ -1,0 +1,12 @@
+version: "3.9"
+services:
+  project-llm:
+    build: .
+    container_name: project-llm
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./config:/app/config
+      - ./models:/app/models
+      - ./sessions:/app/sessions
+    restart: unless-stopped
