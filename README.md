@@ -12,6 +12,7 @@
 - `ResourceManager` c safety-коэффициентами RAM/VRAM.
 - `SessionManager` с versioned stage-артефактами (`stageX_vN`) и `meta.json`.
 - CLI запуск пайплайнов.
+- Streamlit UI для Base/Manual/History/Models вкладок.
 
 ## Структура
 
@@ -35,4 +36,11 @@ python -m app.cli \
 ```bash
 python -m pip install -e .[dev]
 pytest
+```
+
+
+## UI (Streamlit)
+
+```bash
+streamlit run app/ui.py
 ```

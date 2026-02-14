@@ -45,3 +45,6 @@ class ModelRegistry:
             )
 
         return self
+
+    def list_models(self) -> list[RegisteredModel]:
+        return list(self.models.values())

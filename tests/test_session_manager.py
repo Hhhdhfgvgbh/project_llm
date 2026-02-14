@@ -17,8 +17,16 @@ def test_session_manager_writes_versioned_stage(tmp_path: Path) -> None:
         output_payload={"answer": "world"},
     )
 
+    manager.write_final_output(session, "final text", mode="base")
+
     assert stage_dir.name == "stage2_v2"
     assert (stage_dir / "meta.json").exists()
     assert (stage_dir / "input.json").exists()
     assert (stage_dir / "config.json").exists()
     assert (stage_dir / "output.json").exists()
+
+    sessions = manager.list_sessions()
+    assert len(sessions) == 1
+    loaded = manager.load_session(sessions[0].id)
+    assert loaded.final_output == "final text"
+    assert "stage2_v2" in loaded.stages

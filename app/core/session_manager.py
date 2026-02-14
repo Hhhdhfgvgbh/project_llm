@@ -18,6 +18,21 @@ class StageMeta:
     config_hash: str
 
 
+@dataclass
+class SessionSummary:
+    id: str
+    created_at: str
+    mode: str
+    stages: list[str]
+
+
+@dataclass
+class SessionDetails:
+    id: str
+    final_output: str
+    stages: dict[str, dict[str, Any]]
+
+
 class SessionManager:
     def __init__(self, root: Path | str = "sessions") -> None:
         self.root = Path(root)
@@ -65,6 +80,67 @@ class SessionManager:
         )
 
         return stage_dir
+
+    def write_final_output(self, session_path: Path, final_output: str, mode: str) -> Path:
+        (session_path / "final.txt").write_text(final_output, encoding="utf-8")
+        (session_path / "session_meta.json").write_text(
+            json.dumps(
+                {
+                    "id": session_path.name,
+                    "created_at": datetime.now(timezone.utc).isoformat(),
+                    "mode": mode,
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+        return session_path / "final.txt"
+
+    def list_sessions(self) -> list[SessionSummary]:
+        sessions: list[SessionSummary] = []
+        for path in sorted(self.root.glob("session_*"), reverse=True):
+            if not path.is_dir():
+                continue
+
+            meta_path = path / "session_meta.json"
+            mode = "unknown"
+            created_at = path.name.replace("session_", "")
+            if meta_path.exists():
+                try:
+                    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+                    mode = meta.get("mode", mode)
+                    created_at = meta.get("created_at", created_at)
+                except json.JSONDecodeError:
+                    pass
+
+            stages = sorted([p.name for p in path.glob("*_v*") if p.is_dir()])
+            sessions.append(SessionSummary(id=path.name, created_at=created_at, mode=mode, stages=stages))
+
+        return sessions
+
+    def load_session(self, session_id: str) -> SessionDetails:
+        session_path = self.root / session_id
+        if not session_path.exists():
+            raise FileNotFoundError(f"Session not found: {session_id}")
+
+        stages: dict[str, dict[str, Any]] = {}
+        for stage_path in sorted([p for p in session_path.glob("*_v*") if p.is_dir()]):
+            output_path = stage_path / "output.json"
+            payload: dict[str, Any] = {}
+            if output_path.exists():
+                try:
+                    payload = json.loads(output_path.read_text(encoding="utf-8"))
+                except json.JSONDecodeError:
+                    payload = {"error": "Failed to decode output.json"}
+            stages[stage_path.name] = payload
+
+        final_output = ""
+        final_path = session_path / "final.txt"
+        if final_path.exists():
+            final_output = final_path.read_text(encoding="utf-8")
+
+        return SessionDetails(id=session_id, final_output=final_output, stages=stages)
 
     @staticmethod
     def _stable_hash(payload: dict[str, Any]) -> str:

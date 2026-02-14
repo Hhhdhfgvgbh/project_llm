@@ -28,3 +28,15 @@ class ResourceManager:
             available_ram_gb > estimate.required_ram_gb * cls.RAM_SAFETY
             and available_vram_gb > estimate.required_vram_gb * cls.VRAM_SAFETY
         )
+
+
+    @classmethod
+    def check_safety_coefficients(
+        cls,
+        available_ram_gb: float,
+        available_vram_gb: float,
+        required_ram_gb: float = 4.0,
+        required_vram_gb: float = 2.0,
+    ) -> bool:
+        estimate = ResourceEstimate(required_ram_gb=required_ram_gb, required_vram_gb=required_vram_gb)
+        return cls.can_run(available_ram_gb, available_vram_gb, estimate)

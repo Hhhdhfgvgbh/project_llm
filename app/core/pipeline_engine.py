@@ -81,6 +81,8 @@ class PipelineEngine:
                 )
 
         final_output = outputs[pipeline.base_pipeline.stages[-1].id]
+        if session_path is not None:
+            self.session_manager.write_final_output(session_path, final_output, mode="base")
         return PipelineResult(final_output=final_output, steps=steps)
 
     def _execute_single(
