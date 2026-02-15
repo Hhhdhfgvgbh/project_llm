@@ -1,0 +1,7 @@
+pydantic<3,>=2.7
+PyYAML<7,>=6.0
+psutil<6,>=5.9
+streamlit<2,>=1.32
+
+[dev]
+pytest<9,>=8.0

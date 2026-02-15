@@ -4,24 +4,24 @@ base_pipeline:
   stages:
     - id: stage1
       type: single
-      model: llama3_q5
+      model: phi
       system_prompt: "You are an expert analyst."
       generation:
         temperature: 0.6
 
     - id: stage2
       type: single
-      model: mistral_q4
-      system_prompt: "Critique the previous answer."
+      model: phi
+      system_prompt: "Review the previous answer and correct any inaccuracies or add more if necessary."
       input_from: stage1
 
     - id: stage3
       type: multi
       models:
-        - llama3_q5
-        - mistral_q4
-      system_prompt: "Provide alternative interpretations."
+        - phi
+        - deepseek
+      system_prompt: "Shorten if necessary"
       aggregation:
         type: synthesis
-        synthesis_model: llama3_q5
+        synthesis_model: deepseek
       input_from: stage2

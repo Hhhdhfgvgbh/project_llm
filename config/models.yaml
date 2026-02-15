@@ -8,16 +8,19 @@ defaults:
   max_tokens: 1024
   threads: 8
 models:
-  llama3_q5:
-    file: "llama3_q5.gguf"
-    description: "Llama 3 8B Q5_K_M"
+  phi:
+    file: "Phi-3.5-mini-instruct-Q5_K_M.gguf"
+    description: "Phi-3.5-mini-instruct-Q5_K_M"
     quantization: "Q5_K_M"
     required_for_base: true
     overrides:
       n_ctx: 16384
       n_gpu_layers: 35
-  mistral_q4:
-    file: "mistral_q4.gguf"
-    description: "Mistral 7B Q4_K_M"
-    quantization: "Q4_K_M"
-    required_for_base: false
+  deepseek:
+    file: "DeepSeek-R1-Distill-Llama-8B-Q5_K_M.gguf"
+    description: "DeepSeek-R1-Distill-Llama-8B-Q5_K_M"
+    quantization: "Q5_K_M"
+    required_for_base: true
+    overrides:
+      n_ctx: 16384
+      n_gpu_layers: 35
