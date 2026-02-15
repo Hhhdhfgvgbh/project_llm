@@ -15,6 +15,7 @@ class RegisteredModel:
     generation: GenerationParams
     description: str
     quantization: str
+    file_size_gb: float
 
 
 class ModelRegistry:
@@ -42,6 +43,7 @@ class ModelRegistry:
                 generation=merged_generation,
                 description=model.description,
                 quantization=model.quantization.value,
+                file_size_gb=candidate.stat().st_size / (1024**3),
             )
 
         return self

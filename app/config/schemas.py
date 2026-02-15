@@ -92,7 +92,7 @@ class StageSingle(BaseModel):
     type: Literal["single"]
     model: str
     system_prompt: str = ""
-    input_from: str | None = None
+    input_from: str | list[str] | None = None
     generation: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -101,7 +101,7 @@ class StageMulti(BaseModel):
     type: Literal["multi"]
     models: list[str]
     system_prompt: str = ""
-    input_from: str | None = None
+    input_from: str | list[str] | None = None
     generation: dict[str, Any] = Field(default_factory=dict)
     aggregation: AggregationConfig
 
@@ -138,8 +138,20 @@ class BasePipeline(BaseModel):
                 raise ValueError("First stage must not define input_from")
             if index > 0 and stage.input_from is None:
                 raise ValueError(f"Stage '{stage.id}' must define input_from")
-            if stage.input_from is not None and stage.input_from not in ids:
-                raise ValueError(f"Stage '{stage.id}' references unknown input_from='{stage.input_from}'")
+
+            refs: list[str]
+            if isinstance(stage.input_from, str):
+                refs = [stage.input_from]
+            elif isinstance(stage.input_from, list):
+                refs = stage.input_from
+                if not refs:
+                    raise ValueError(f"Stage '{stage.id}' input_from list cannot be empty")
+            else:
+                refs = []
+
+            for ref in refs:
+                if ref not in ids:
+                    raise ValueError(f"Stage '{stage.id}' references unknown input_from='{ref}'")
 
         return self
 
