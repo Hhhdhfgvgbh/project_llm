@@ -8,12 +8,14 @@ base_pipeline:
       system_prompt: "You are an expert analyst."
       generation:
         temperature: 0.6
+      output_mode: question_and_answer
 
     - id: stage2
       type: single
       model: phi
       system_prompt: "Review the previous answer and correct any inaccuracies or add more if necessary."
       input_from: stage1
+      output_mode: answer_only
 
     - id: stage3
       type: multi
