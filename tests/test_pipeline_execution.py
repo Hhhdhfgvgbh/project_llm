@@ -40,6 +40,7 @@ base_pipeline:
       type: single
       model: llama3_q5
       system_prompt: "Analyze"
+      output_mode: question_and_answer
 
     - id: stage2
       type: multi
@@ -68,3 +69,14 @@ def test_base_pipeline_executor_runs(tmp_path: Path) -> None:
     assert result.steps[1].stage_id == "stage2"
     assert result.steps[2].stage_id == "stage3"
     assert "generated response" in result.final_output
+
+
+def test_stage_can_forward_question_and_answer(tmp_path: Path) -> None:
+    models = _write_models(tmp_path)
+    pipeline = _write_pipeline(tmp_path)
+
+    context = BasePipelineExecutor(str(models), str(pipeline)).build()
+    result = context.engine.run(context.pipeline, user_input="hello", session_enabled=False)
+    stage2_prompt_echo = result.steps[1].model_outputs["llama3_q5"]
+    assert "Question:" in stage2_prompt_echo
+    assert "Answer:" in stage2_prompt_echo
