@@ -93,6 +93,7 @@ class StageSingle(BaseModel):
     model: str
     system_prompt: str = ""
     input_from: str | list[str] | None = None
+    output_mode: Literal["answer_only", "input_plus_answer"] = "answer_only"
     generation: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -102,6 +103,7 @@ class StageMulti(BaseModel):
     models: list[str]
     system_prompt: str = ""
     input_from: str | list[str] | None = None
+    output_mode: Literal["answer_only", "input_plus_answer"] = "answer_only"
     generation: dict[str, Any] = Field(default_factory=dict)
     aggregation: AggregationConfig
 

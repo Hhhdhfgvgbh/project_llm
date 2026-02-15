@@ -101,6 +101,12 @@ def build_manual_pipeline_from_ui(models_cfg: object, fallback_pipeline: Pipelin
             "id": stage_id.strip() or f"manual_stage_{idx + 1}",
             "type": stage_type,
             "system_prompt": system_prompt,
+            "output_mode": st.selectbox(
+                "Что отправлять на выход стадии",
+                options=["answer_only", "input_plus_answer"],
+                format_func=lambda value: "Только ответ" if value == "answer_only" else "Входящий запрос + ответ",
+                key=f"m_output_mode_{idx}",
+            ),
             "generation": generation,
         }
 

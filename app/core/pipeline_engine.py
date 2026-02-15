@@ -63,7 +63,7 @@ class PipelineEngine:
             else:
                 raise ValueError(f"Unsupported stage type: {stage}")
 
-            outputs[stage.id] = step.aggregated_output
+            outputs[stage.id] = self._build_stage_output(incoming, step.aggregated_output, stage.output_mode)
             steps.append(step)
 
             if session_path is not None:
@@ -95,6 +95,12 @@ class PipelineEngine:
 
         chunks = [outputs[item] for item in stage_input_from]
         return "\n\n".join(chunks)
+
+    @staticmethod
+    def _build_stage_output(incoming: str, answer: str, output_mode: str) -> str:
+        if output_mode == "input_plus_answer":
+            return f"Input:\n{incoming}\n\nAnswer:\n{answer}"
+        return answer
 
     def _execute_single(
         self,

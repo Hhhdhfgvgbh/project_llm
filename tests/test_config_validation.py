@@ -102,3 +102,26 @@ base_pipeline:
 
     with pytest.raises(ValueError):
         ConfigLoader.load_pipeline_config(path)
+
+
+def test_pipeline_rejects_invalid_output_mode(tmp_path: Path) -> None:
+    path = tmp_path / "pipeline.yaml"
+    path.write_text(
+        """
+version: 1
+base_pipeline:
+  stages:
+    - id: stage1
+      type: single
+      model: llama3_q5
+    - id: stage2
+      type: single
+      model: mistral_q4
+      input_from: stage1
+      output_mode: invalid_mode
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError):
+        ConfigLoader.load_pipeline_config(path)

@@ -47,6 +47,7 @@ base_pipeline:
       type: single
       model: llama3_q5
       system_prompt: "Analyze"
+      output_mode: input_plus_answer
 
     - id: stage2
       type: multi
@@ -99,3 +100,25 @@ def test_second_stage_system_prompt_is_forwarded_to_model(tmp_path: Path) -> Non
     for model_output in result.steps[1].model_outputs.values():
         assert "system=<Alternatives>" in model_output
         assert stage1_output in model_output
+
+
+def test_output_mode_input_plus_answer_changes_next_stage_input(tmp_path: Path) -> None:
+    models = _write_models(tmp_path)
+    pipeline = _write_pipeline(tmp_path)
+
+    models_cfg = ConfigLoader.load_models_config(models)
+    pipeline_cfg = ConfigLoader.load_pipeline_config(pipeline)
+    registry = ModelRegistry(models_cfg).build()
+    engine = PipelineEngine(
+        registry=registry,
+        model_wrapper=ModelWrapper(),
+        aggregation_engine=AggregationEngine(),
+        resource_manager=ResourceManager(),
+        session_manager=SessionManager(root=tmp_path / "sessions2"),
+    )
+
+    result = engine.run(pipeline_cfg, user_input="hello")
+
+    for model_output in result.steps[1].model_outputs.values():
+        assert "Input:" in model_output
+        assert "Answer:" in model_output

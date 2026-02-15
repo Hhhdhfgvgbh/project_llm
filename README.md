@@ -168,6 +168,7 @@ docker compose up --build
 - стадия `single` — одно поле `model`;
 - стадия `multi` — `models[]` + `aggregation`;
 - `input_from` — связь с предыдущим этапом (строка) или объединение нескольких предыдущих этапов (список).
+- `output_mode` — что передавать в следующий этап: `answer_only` или `input_plus_answer`.
 
 ---
 
