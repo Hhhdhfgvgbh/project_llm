@@ -3,7 +3,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from app.config.schemas import AggregationConfig, PipelineConfig, StageMulti, StageSingle
+from app.config.schemas import (
+    AggregationConfig,
+    PipelineConfig,
+    StageMulti,
+    StageOutputMode,
+    StageSingle,
+)
 from app.core.aggregation import AggregationEngine
 from app.core.model_registry import ModelRegistry, RegisteredModel
 from app.core.model_wrapper import ModelRuntimeConfig, ModelWrapper
@@ -48,13 +54,18 @@ class PipelineEngine:
         available_vram_gb: float = 16,
         session_enabled: bool = True,
     ) -> PipelineResult:
-        outputs: dict[str, str] = {}
+        stage_outputs: dict[str, str] = {}
+        forwarded_outputs: dict[str, str] = {}
         steps: list[StageExecution] = []
 
         session_path = self.session_manager.create_session() if session_enabled else None
 
         for index, stage in enumerate(pipeline.base_pipeline.stages, start=1):
-            incoming = self._resolve_stage_input(user_input=user_input, stage_input_from=stage.input_from, outputs=outputs)
+            incoming = self._resolve_stage_input(
+                user_input=user_input,
+                stage_input_from=stage.input_from,
+                outputs=forwarded_outputs,
+            )
 
             if isinstance(stage, StageSingle):
                 step = self._execute_single(stage, incoming, available_ram_gb, available_vram_gb)
@@ -63,7 +74,8 @@ class PipelineEngine:
             else:
                 raise ValueError(f"Unsupported stage type: {stage}")
 
-            outputs[stage.id] = step.aggregated_output
+            stage_outputs[stage.id] = step.aggregated_output
+            forwarded_outputs[stage.id] = self._build_forward_payload(stage.output_mode, incoming, step.aggregated_output)
             steps.append(step)
 
             if session_path is not None:
@@ -77,10 +89,11 @@ class PipelineEngine:
                     output_payload={
                         "model_outputs": step.model_outputs,
                         "aggregated_output": step.aggregated_output,
+                        "forward_payload": forwarded_outputs[stage.id],
                     },
                 )
 
-        final_output = outputs[pipeline.base_pipeline.stages[-1].id]
+        final_output = stage_outputs[pipeline.base_pipeline.stages[-1].id]
         if session_path is not None:
             self.session_manager.write_final_output(session_path, final_output, mode="base")
         return PipelineResult(final_output=final_output, steps=steps)
@@ -95,6 +108,20 @@ class PipelineEngine:
 
         chunks = [outputs[item] for item in stage_input_from]
         return "\n\n".join(chunks)
+
+
+    @staticmethod
+    def _build_model_input(instructions: str, incoming: str) -> str:
+        cleaned = instructions.strip()
+        if not cleaned:
+            return incoming
+        return f"{cleaned}\n\n{incoming}"
+
+    @staticmethod
+    def _build_forward_payload(output_mode: StageOutputMode, incoming: str, response: str) -> str:
+        if output_mode == StageOutputMode.QUESTION_AND_ANSWER:
+            return f"Question:\n{incoming}\n\nAnswer:\n{response}"
+        return response
 
     def _execute_single(
         self,
@@ -113,7 +140,8 @@ class PipelineEngine:
         )
 
         self.model_wrapper.load(model.name, model.path, runtime)
-        output = self.model_wrapper.generate(model.name, incoming, stage.system_prompt, runtime)
+        model_input = self._build_model_input(stage.instructions, incoming)
+        output = self.model_wrapper.generate(model.name, model_input, stage.system_prompt, runtime)
         self.model_wrapper.unload(model.name)
 
         return StageExecution(
@@ -144,7 +172,8 @@ class PipelineEngine:
             )
 
             self.model_wrapper.load(model.name, model.path, runtime)
-            text = self.model_wrapper.generate(model.name, incoming, stage.system_prompt, runtime)
+            model_input = self._build_model_input(stage.instructions, incoming)
+            text = self.model_wrapper.generate(model.name, model_input, stage.system_prompt, runtime)
             self.model_wrapper.unload(model.name)
 
             model_outputs[model.name] = text

@@ -6,14 +6,18 @@ base_pipeline:
       type: single
       model: llama3_q5
       system_prompt: "You are an expert analyst."
+      instructions: "Дай краткий и точный ответ без воды."
       generation:
         temperature: 0.6
+      output_mode: question_and_answer
 
     - id: stage2
       type: single
       model: mistral_q4
       system_prompt: "Critique the previous answer."
+      instructions: "Сначала перечисли 3 замечания, затем предложи улучшенную версию."
       input_from: stage1
+      output_mode: answer_only
 
     - id: stage3
       type: multi
@@ -21,6 +25,7 @@ base_pipeline:
         - llama3_q5
         - mistral_q4
       system_prompt: "Provide alternative interpretations."
+      instructions: "Сравни ответы и выдай итог без повторов."
       aggregation:
         type: synthesis
         synthesis_model: llama3_q5

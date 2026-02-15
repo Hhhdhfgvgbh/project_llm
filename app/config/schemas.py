@@ -87,12 +87,19 @@ class AggregationConfig(BaseModel):
         return self
 
 
+class StageOutputMode(str, Enum):
+    ANSWER_ONLY = "answer_only"
+    QUESTION_AND_ANSWER = "question_and_answer"
+
+
 class StageSingle(BaseModel):
     id: str
     type: Literal["single"]
     model: str
     system_prompt: str = ""
     input_from: str | list[str] | None = None
+    instructions: str = ""
+    output_mode: StageOutputMode = StageOutputMode.ANSWER_ONLY
     generation: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -102,6 +109,8 @@ class StageMulti(BaseModel):
     models: list[str]
     system_prompt: str = ""
     input_from: str | list[str] | None = None
+    instructions: str = ""
+    output_mode: StageOutputMode = StageOutputMode.ANSWER_ONLY
     generation: dict[str, Any] = Field(default_factory=dict)
     aggregation: AggregationConfig
 

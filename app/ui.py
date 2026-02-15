@@ -6,7 +6,7 @@ import psutil
 import streamlit as st
 
 from app.config.loader import ConfigLoader
-from app.config.schemas import AggregationType, PipelineConfig
+from app.config.schemas import AggregationType, PipelineConfig, StageOutputMode
 from app.core.aggregation_engine import AggregationEngine
 from app.core.model_registry import ModelRegistry
 from app.core.model_wrapper import ModelWrapper
@@ -76,6 +76,11 @@ def build_manual_pipeline_from_ui(models_cfg: object, fallback_pipeline: Pipelin
         stage_id = st.text_input("ID стадии", value=f"manual_stage_{idx + 1}", key=f"m_id_{idx}")
         stage_type = st.selectbox("Тип стадии", ["single", "multi"], key=f"m_type_{idx}")
         system_prompt = st.text_area("System prompt", key=f"m_prompt_{idx}", height=80)
+        instructions = st.text_area(
+            "Указания (добавляются в начало входа модели)",
+            key=f"m_instructions_{idx}",
+            height=80,
+        )
 
         col1, col2, col3 = st.columns(3)
         with col1:
@@ -97,10 +102,19 @@ def build_manual_pipeline_from_ui(models_cfg: object, fallback_pipeline: Pipelin
             "threads": int(threads),
         }
 
+        output_mode = st.selectbox(
+            "Что передавать в следующую стадию",
+            options=[item.value for item in StageOutputMode],
+            format_func=lambda value: "Только ответ" if value == StageOutputMode.ANSWER_ONLY.value else "Вопрос + ответ",
+            key=f"m_output_mode_{idx}",
+        )
+
         stage_data: dict = {
             "id": stage_id.strip() or f"manual_stage_{idx + 1}",
             "type": stage_type,
             "system_prompt": system_prompt,
+            "instructions": instructions,
+            "output_mode": output_mode,
             "generation": generation,
         }
 

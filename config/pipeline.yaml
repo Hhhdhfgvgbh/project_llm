@@ -6,14 +6,18 @@ base_pipeline:
       type: single
       model: phi
       system_prompt: "You are an expert analyst."
+      instructions: "Дай краткий и точный ответ без воды."
       generation:
         temperature: 0.6
+      output_mode: question_and_answer
 
     - id: stage2
       type: single
       model: phi
       system_prompt: "Review the previous answer and correct any inaccuracies or add more if necessary."
+      instructions: "Сделай проверку фактов и исправь неточности по пунктам."
       input_from: stage1
+      output_mode: answer_only
 
     - id: stage3
       type: multi
@@ -21,6 +25,7 @@ base_pipeline:
         - phi
         - deepseek
       system_prompt: "Shorten if necessary"
+      instructions: "Верни финальный ответ максимум в 5 предложениях."
       aggregation:
         type: synthesis
         synthesis_model: deepseek
