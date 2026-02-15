@@ -9,6 +9,7 @@ from app.core.aggregation import AggregationEngine
 from app.core.model_registry import ModelRegistry
 from app.core.model_wrapper import ModelWrapper
 from app.core.pipeline_engine import PipelineEngine, PipelineResult
+from app.core.output_cleaner import OutputCleaner
 from app.core.resource_manager import ResourceManager
 from app.core.session_manager import SessionManager
 
@@ -37,12 +38,14 @@ class BasePipelineExecutor:
             raise ValueError("; ".join(report.errors))
 
         aggregation = AggregationEngine(synthesis_callback=self._synthesis_callback)
+        cleaner = OutputCleaner.from_yaml("config/cleaning_rules.yaml")
         engine = PipelineEngine(
             registry=registry,
             model_wrapper=ModelWrapper(),
             aggregation_engine=aggregation,
             resource_manager=ResourceManager(),
             session_manager=SessionManager(),
+            output_cleaner=cleaner,
         )
         return ExecutorContext(engine=engine, pipeline=pipeline_cfg)
 
@@ -71,11 +74,13 @@ class ManualPipelineExecutor:
         aggregation = AggregationEngine(
             synthesis_callback=lambda model, prompt: f"[MANUAL-SYNTHESIS:{model}] {prompt}"
         )
+        cleaner = OutputCleaner.from_yaml("config/cleaning_rules.yaml")
         engine = PipelineEngine(
             registry=registry,
             model_wrapper=ModelWrapper(),
             aggregation_engine=aggregation,
             resource_manager=ResourceManager(),
             session_manager=SessionManager(),
+            output_cleaner=cleaner,
         )
         return engine.run(self.pipeline, user_input=user_input)

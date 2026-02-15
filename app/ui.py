@@ -11,6 +11,7 @@ from app.core.aggregation_engine import AggregationEngine
 from app.core.model_registry import ModelRegistry
 from app.core.model_wrapper import ModelWrapper
 from app.core.pipeline_engine import PipelineEngine
+from app.core.output_cleaner import OutputCleaner
 from app.core.resource_manager import ResourceManager
 from app.core.session_manager import SessionManager
 
@@ -48,6 +49,7 @@ def load_configs() -> tuple[object | None, PipelineConfig | None, list[str]]:
 
 def build_engine(models_cfg: object) -> tuple[PipelineEngine, ModelRegistry]:
     registry = ModelRegistry(models_cfg).build()
+    cleaner = OutputCleaner.from_yaml(CONFIG_DIR / "cleaning_rules.yaml")
     engine = PipelineEngine(
         registry=registry,
         model_wrapper=ModelWrapper(),
@@ -56,6 +58,7 @@ def build_engine(models_cfg: object) -> tuple[PipelineEngine, ModelRegistry]:
         ),
         resource_manager=ResourceManager(),
         session_manager=SessionManager(),
+        output_cleaner=cleaner,
     )
     return engine, registry
 

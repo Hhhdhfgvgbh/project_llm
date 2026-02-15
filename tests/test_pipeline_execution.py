@@ -19,10 +19,12 @@ models:
     file: "llama3_q5.gguf"
     quantization: "Q5_K_M"
     required_for_base: true
+    strip_reasoning: true
   mistral_q4:
     file: "mistral_q4.gguf"
     quantization: "Q4_K_M"
     required_for_base: false
+    strip_reasoning: false
 """,
         encoding="utf-8",
     )
@@ -99,3 +101,19 @@ def test_build_model_input_keeps_forwarded_data_clean() -> None:
     built = PipelineEngine._build_model_input("Use bullets", "Question:\nQ\n\nAnswer:\nA")
     assert built.startswith("Use bullets")
     assert "Question:\nQ" in built
+
+
+def test_strip_reasoning_flag_cleans_model_output(tmp_path: Path, monkeypatch) -> None:
+    models = _write_models(tmp_path)
+    pipeline = _write_pipeline(tmp_path)
+
+    def fake_generate(self, model_name, prompt, system_prompt="", runtime=None):  # noqa: ANN001
+        return "<think>hidden</think>Visible answer"
+
+    monkeypatch.setattr("app.core.model_wrapper.ModelWrapper.generate", fake_generate)
+
+    context = BasePipelineExecutor(str(models), str(pipeline)).build()
+    result = context.engine.run(context.pipeline, user_input="hello", session_enabled=False)
+
+    assert "<think>" not in result.steps[0].aggregated_output
+    assert "Visible answer" in result.steps[0].aggregated_output

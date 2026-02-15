@@ -16,6 +16,11 @@ if [ ! -f config/pipeline.yaml ]; then
   echo "Created config/pipeline.yaml from example"
 fi
 
+if [ ! -f config/cleaning_rules.yaml ]; then
+  cp config/cleaning_rules.example.yaml config/cleaning_rules.yaml
+  echo "Created config/cleaning_rules.yaml from example"
+fi
+
 echo "Bootstrap completed."
 echo "1) Put your *.gguf models into ./models"
 echo "2) Edit config/models.yaml file names"

@@ -1,0 +1,17 @@
+version: 1
+
+universal:
+  remove_blocks:
+    - start: "<think>"
+      end: "</think>"
+    - start: "<reasoning>"
+      end: "</reasoning>"
+    - start: "<analysis>"
+      end: "</analysis>"
+
+# Можно переопределять правила для отдельных моделей.
+# disabled_universal_blocks — индексы правил из universal.remove_blocks, которые нужно отключить для модели.
+model_rules:
+  model_name_here:
+    disabled_universal_blocks: []
+    remove_blocks: []

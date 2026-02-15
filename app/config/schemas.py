@@ -42,6 +42,7 @@ class ModelDefinition(BaseModel):
     description: str = ""
     quantization: Quantization
     required_for_base: bool = False
+    strip_reasoning: bool = False
     overrides: ModelOverrides = Field(default_factory=ModelOverrides)
 
 

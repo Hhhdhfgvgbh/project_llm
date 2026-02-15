@@ -1,0 +1,20 @@
+version: 1
+
+universal:
+  remove_blocks:
+    - start: "<think>"
+      end: "</think>"
+    - start: "<reasoning>"
+      end: "</reasoning>"
+    - start: "<analysis>"
+      end: "</analysis>"
+    - start: "<reflection>"
+      end: "</reflection>"
+
+# Точечные правила для конкретных моделей/семейств.
+# Ключ — имя модели из models.yaml.
+model_rules:
+  deepseek:
+    remove_blocks:
+      - start: "<thought>"
+        end: "</thought>"

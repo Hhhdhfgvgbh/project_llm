@@ -13,6 +13,7 @@ from app.config.schemas import (
 from app.core.aggregation import AggregationEngine
 from app.core.model_registry import ModelRegistry, RegisteredModel
 from app.core.model_wrapper import ModelRuntimeConfig, ModelWrapper
+from app.core.output_cleaner import OutputCleaner
 from app.core.resource_manager import ResourceManager
 from app.core.session_manager import SessionManager
 
@@ -39,12 +40,14 @@ class PipelineEngine:
         aggregation_engine: AggregationEngine,
         resource_manager: ResourceManager,
         session_manager: SessionManager,
+        output_cleaner: OutputCleaner,
     ) -> None:
         self.registry = registry
         self.model_wrapper = model_wrapper
         self.aggregation_engine = aggregation_engine
         self.resource_manager = resource_manager
         self.session_manager = session_manager
+        self.output_cleaner = output_cleaner
 
     def run(
         self,
@@ -142,6 +145,7 @@ class PipelineEngine:
         self.model_wrapper.load(model.name, model.path, runtime)
         model_input = self._build_model_input(stage.instructions, incoming)
         output = self.model_wrapper.generate(model.name, model_input, stage.system_prompt, runtime)
+        output = self._clean_if_enabled(output, model.name, model.strip_reasoning)
         self.model_wrapper.unload(model.name)
 
         return StageExecution(
@@ -174,6 +178,7 @@ class PipelineEngine:
             self.model_wrapper.load(model.name, model.path, runtime)
             model_input = self._build_model_input(stage.instructions, incoming)
             text = self.model_wrapper.generate(model.name, model_input, stage.system_prompt, runtime)
+            text = self._clean_if_enabled(text, model.name, model.strip_reasoning)
             self.model_wrapper.unload(model.name)
 
             model_outputs[model.name] = text
@@ -186,6 +191,12 @@ class PipelineEngine:
             model_outputs=model_outputs,
             aggregated_output=aggregation.output,
         )
+
+
+    def _clean_if_enabled(self, text: str, model_name: str, strip_reasoning: bool) -> str:
+        if not strip_reasoning:
+            return text
+        return self.output_cleaner.clean(text=text, model_name=model_name)
 
     @staticmethod
     def _runtime_config(model: RegisteredModel, generation: dict[str, Any]) -> ModelRuntimeConfig:
