@@ -2,7 +2,7 @@
 
 Локальное приложение для оркестрации multi-stage пайплайнов поверх нескольких GGUF-моделей.
 
-> **Важно:** сейчас `ModelWrapper` работает как безопасный mock-runtime (детерминированный текстовый вывод), чтобы архитектуру, UI и хранение сессий можно было полностью отладить до интеграции реального `llama.cpp` backend.
+> **Важно:** `ModelWrapper` использует `llama-cpp-python` runtime. Для локального запуска нужны совместимые бинари/драйверы (CPU или CUDA-сборка).
 
 ---
 
@@ -167,7 +167,7 @@ docker compose up --build
 - `base_pipeline.stages[]` — список стадий;
 - стадия `single` — одно поле `model`;
 - стадия `multi` — `models[]` + `aggregation`;
-- `input_from` — связь с предыдущим этапом.
+- `input_from` — связь с предыдущим этапом (строка) или объединение нескольких предыдущих этапов (список).
 
 ---
 
@@ -175,17 +175,17 @@ docker compose up --build
 
 Ниже список честно, без «магии»:
 
-1. **Реальный inference backend**
-   - Сейчас mock-ответы в `ModelWrapper.generate()`.
-   - Нужно подключить `llama-cpp-python` + управление lifecycle моделей.
+1. **Production-hardening inference backend**
+   - Базовый runtime уже работает через `llama-cpp-python`.
+   - Нужны более детальная обработка ошибок (CUDA OOM и т.п.) и fallback-стратегии.
 
-2. **Manual Builder в UI**
-   - Сейчас manual вкладка запускает текущий pipeline как шаблон.
-   - Нужно UI-конструктор: add/remove stage, model pickers, generation knobs, aggregation selector.
+2. **Manual Builder UX-polish**
+   - Визуальный конструктор стадий уже есть (single/multi, generation, aggregation).
+   - Можно добавить drag-and-drop, сохранение пресетов и более компактный layout.
 
-3. **Точная оценка памяти на основе метаданных модели**
-   - Сейчас простая safety-проверка.
-   - Нужно считать по слоям/контексту/kv-cache на реальных параметрах.
+3. **Точность оценки памяти**
+   - Добавлена оценка на основе размера модели + KV cache (n_ctx).
+   - Для production желательно учитывать больше метаданных (слои, kv precision, offload profile).
 
 4. **Полная ветвистая версия стадий (DAG rerun)**
    - Базовые versioned артефакты есть.
@@ -201,8 +201,8 @@ docker compose up --build
 
 ## 7) Как добавить недостающее (коротко)
 
-- **llama backend**: реализовать адаптер в `app/core/model_wrapper.py` (load/unload/generate) и добавить флаг `MOCK_MODE=false`.
-- **manual builder**: расширить `app/ui.py` и формировать `PipelineConfig` на лету.
+- **llama backend**: усилить обработку ошибок/таймаутов и добавить режимы graceful fallback.
+- **manual builder**: добавить drag-and-drop порядок стадий, сохранение/загрузку пользовательских шаблонов.
 - **DAG rerun**: в `SessionManager` хранить `run_id`, `parent_run_id` и отдельный индекс веток.
 - **релизы**: добавить workflow, который на `tag` собирает wheel/docker image.
 

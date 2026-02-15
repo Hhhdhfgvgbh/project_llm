@@ -48,6 +48,11 @@ base_pipeline:
       aggregation:
         type: concat
       input_from: stage1
+
+    - id: stage3
+      type: single
+      model: llama3_q5
+      input_from: [stage1, stage2]
 """,
         encoding="utf-8",
     )
@@ -61,4 +66,5 @@ def test_base_pipeline_executor_runs(tmp_path: Path) -> None:
     result = BasePipelineExecutor(str(models), str(pipeline)).run("hello")
     assert result.steps[0].stage_id == "stage1"
     assert result.steps[1].stage_id == "stage2"
+    assert result.steps[2].stage_id == "stage3"
     assert "generated response" in result.final_output

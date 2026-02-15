@@ -7,7 +7,7 @@ from app.config.schemas import AggregationConfig, PipelineConfig, StageMulti, St
 from app.core.aggregation import AggregationEngine
 from app.core.model_registry import ModelRegistry, RegisteredModel
 from app.core.model_wrapper import ModelRuntimeConfig, ModelWrapper
-from app.core.resource_manager import ResourceEstimate, ResourceManager
+from app.core.resource_manager import ResourceManager
 from app.core.session_manager import SessionManager
 
 
@@ -54,7 +54,7 @@ class PipelineEngine:
         session_path = self.session_manager.create_session() if session_enabled else None
 
         for index, stage in enumerate(pipeline.base_pipeline.stages, start=1):
-            incoming = user_input if stage.input_from is None else outputs[stage.input_from]
+            incoming = self._resolve_stage_input(user_input=user_input, stage_input_from=stage.input_from, outputs=outputs)
 
             if isinstance(stage, StageSingle):
                 step = self._execute_single(stage, incoming, available_ram_gb, available_vram_gb)
@@ -85,6 +85,17 @@ class PipelineEngine:
             self.session_manager.write_final_output(session_path, final_output, mode="base")
         return PipelineResult(final_output=final_output, steps=steps)
 
+
+    @staticmethod
+    def _resolve_stage_input(user_input: str, stage_input_from: str | list[str] | None, outputs: dict[str, str]) -> str:
+        if stage_input_from is None:
+            return user_input
+        if isinstance(stage_input_from, str):
+            return outputs[stage_input_from]
+
+        chunks = [outputs[item] for item in stage_input_from]
+        return "\n\n".join(chunks)
+
     def _execute_single(
         self,
         stage: StageSingle,
@@ -94,7 +105,12 @@ class PipelineEngine:
     ) -> StageExecution:
         model = self._require_model(stage.model)
         runtime = self._runtime_config(model, stage.generation)
-        self._assert_resources(available_ram_gb, available_vram_gb)
+        self._assert_resources(
+            available_ram_gb=available_ram_gb,
+            available_vram_gb=available_vram_gb,
+            model_sizes_gb=[model.file_size_gb],
+            n_ctx_values=[runtime.n_ctx],
+        )
 
         self.model_wrapper.load(model.name, model.path, runtime)
         output = self.model_wrapper.generate(model.name, incoming, stage.system_prompt, runtime)
@@ -120,7 +136,12 @@ class PipelineEngine:
         for model_name in stage.models:
             model = self._require_model(model_name)
             runtime = self._runtime_config(model, stage.generation)
-            self._assert_resources(available_ram_gb, available_vram_gb)
+            self._assert_resources(
+                available_ram_gb=available_ram_gb,
+                available_vram_gb=available_vram_gb,
+                model_sizes_gb=[model.file_size_gb],
+                n_ctx_values=[runtime.n_ctx],
+            )
 
             self.model_wrapper.load(model.name, model.path, runtime)
             text = self.model_wrapper.generate(model.name, incoming, stage.system_prompt, runtime)
@@ -148,10 +169,19 @@ class PipelineEngine:
             raise ValueError(f"Model '{model_name}' is not registered or unavailable")
         return model
 
-    def _assert_resources(self, available_ram_gb: float, available_vram_gb: float) -> None:
-        estimate = ResourceEstimate(required_ram_gb=4.0, required_vram_gb=2.0)
+    def _assert_resources(
+        self,
+        available_ram_gb: float,
+        available_vram_gb: float,
+        model_sizes_gb: list[float],
+        n_ctx_values: list[int],
+    ) -> None:
+        estimate = self.resource_manager.estimate_for_models(model_sizes_gb, n_ctx_values)
         if not self.resource_manager.can_run(available_ram_gb, available_vram_gb, estimate):
-            raise MemoryError("Insufficient resources for requested stage execution")
+            raise MemoryError(
+                "Insufficient resources for requested stage execution "
+                f"(required RAM~{estimate.required_ram_gb:.2f}GB, VRAM~{estimate.required_vram_gb:.2f}GB)"
+            )
 
     @staticmethod
     def _aggregation_cfg(config: AggregationConfig) -> AggregationConfig:
