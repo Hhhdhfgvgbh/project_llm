@@ -6,7 +6,7 @@ import psutil
 import streamlit as st
 
 from app.config.loader import ConfigLoader
-from app.config.schemas import PipelineConfig
+from app.config.schemas import AggregationType, PipelineConfig
 from app.core.aggregation_engine import AggregationEngine
 from app.core.model_registry import ModelRegistry
 from app.core.model_wrapper import ModelWrapper
@@ -58,6 +58,116 @@ def build_engine(models_cfg: object) -> tuple[PipelineEngine, ModelRegistry]:
         session_manager=SessionManager(),
     )
     return engine, registry
+
+
+def build_manual_pipeline_from_ui(models_cfg: object, fallback_pipeline: PipelineConfig | None) -> PipelineConfig:
+    available_models = sorted(models_cfg.models.keys())
+    if not available_models:
+        raise ValueError("Нет доступных моделей в models.yaml")
+
+    default_stages = len(fallback_pipeline.base_pipeline.stages) if fallback_pipeline else 2
+    stages_count = st.number_input("Количество стадий", min_value=1, max_value=8, value=default_stages, step=1)
+
+    stage_payloads: list[dict] = []
+    stage_ids: list[str] = []
+
+    for idx in range(int(stages_count)):
+        st.markdown(f"### Стадия {idx + 1}")
+        stage_id = st.text_input("ID стадии", value=f"manual_stage_{idx + 1}", key=f"m_id_{idx}")
+        stage_type = st.selectbox("Тип стадии", ["single", "multi"], key=f"m_type_{idx}")
+        system_prompt = st.text_area("System prompt", key=f"m_prompt_{idx}", height=80)
+
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            temperature = st.number_input("temperature", min_value=0.0, max_value=2.0, value=0.7, step=0.05, key=f"m_t_{idx}")
+            top_p = st.number_input("top_p", min_value=0.0, max_value=1.0, value=0.95, step=0.05, key=f"m_p_{idx}")
+        with col2:
+            max_tokens = st.number_input("max_tokens", min_value=1, max_value=8192, value=1024, step=32, key=f"m_mt_{idx}")
+            n_ctx = st.number_input("n_ctx", min_value=256, max_value=65536, value=8192, step=256, key=f"m_ctx_{idx}")
+        with col3:
+            n_gpu_layers = st.number_input("n_gpu_layers", min_value=-1, max_value=512, value=0, step=1, key=f"m_gpu_{idx}")
+            threads = st.number_input("threads", min_value=1, max_value=128, value=8, step=1, key=f"m_th_{idx}")
+
+        generation = {
+            "temperature": float(temperature),
+            "top_p": float(top_p),
+            "max_tokens": int(max_tokens),
+            "n_ctx": int(n_ctx),
+            "n_gpu_layers": int(n_gpu_layers),
+            "threads": int(threads),
+        }
+
+        stage_data: dict = {
+            "id": stage_id.strip() or f"manual_stage_{idx + 1}",
+            "type": stage_type,
+            "system_prompt": system_prompt,
+            "generation": generation,
+        }
+
+        if idx > 0:
+            input_count = st.number_input(
+                "Сколько входов объединить",
+                min_value=1,
+                max_value=len(stage_ids),
+                value=1,
+                step=1,
+                key=f"m_input_count_{idx}",
+            )
+            selected_inputs: list[str] = []
+            for input_idx in range(int(input_count)):
+                selected = st.selectbox(
+                    f"Выход берём из #{input_idx + 1}",
+                    options=stage_ids,
+                    index=min(input_idx, len(stage_ids) - 1),
+                    key=f"m_input_{idx}_{input_idx}",
+                )
+                selected_inputs.append(selected)
+
+            deduped_inputs = list(dict.fromkeys(selected_inputs))
+            stage_data["input_from"] = deduped_inputs[0] if len(deduped_inputs) == 1 else deduped_inputs
+
+        if stage_type == "single":
+            stage_data["model"] = st.selectbox("Модель", options=available_models, key=f"m_model_{idx}")
+        else:
+            selected = st.multiselect(
+                "Модели",
+                options=available_models,
+                default=available_models[:2],
+                key=f"m_models_{idx}",
+            )
+            stage_data["models"] = selected
+
+            agg_type = st.selectbox(
+                "Aggregation",
+                options=[item.value for item in AggregationType],
+                key=f"m_agg_type_{idx}",
+            )
+            agg_payload = {"type": agg_type}
+            if agg_type in (AggregationType.SYNTHESIS.value, AggregationType.CUSTOM_TEMPLATE.value):
+                agg_payload["synthesis_model"] = st.selectbox(
+                    "Synthesis model",
+                    options=available_models,
+                    key=f"m_agg_model_{idx}",
+                )
+            if agg_type == AggregationType.CUSTOM_TEMPLATE.value:
+                agg_payload["template"] = st.text_area(
+                    "Template",
+                    value="A={{model_1}}\n\nB={{model_2}}",
+                    key=f"m_agg_tpl_{idx}",
+                )
+            stage_data["aggregation"] = agg_payload
+
+        stage_payloads.append(stage_data)
+        stage_ids.append(stage_data["id"])
+
+    payload = {
+        "version": 1,
+        "base_pipeline": {
+            "execution_mode": "sequential",
+            "stages": stage_payloads,
+        },
+    }
+    return PipelineConfig.model_validate(payload)
 
 
 def render_sidebar(models_cfg: object | None, pipeline_cfg: PipelineConfig | None, warnings: list[str]) -> None:
@@ -140,19 +250,25 @@ def render_base_tab(models_cfg: object | None, pipeline_cfg: PipelineConfig | No
 
 def render_manual_tab(models_cfg: object | None, pipeline_cfg: PipelineConfig | None) -> None:
     st.header("Ручной режим")
-    st.info(
-        "Пока manual mode использует текущий pipeline.yaml как шаблон. "
-        "Следующий шаг — визуальный stage-builder (добавление/удаление/параметры)."
-    )
+    st.info("Визуальный конструктор: настраивайте стадии, модели, параметры генерации, агрегацию и объединение входов из нескольких этапов.")
 
     text_input = st.text_area("Вход для manual режима", key="manual_input", height=160)
-    run_manual = st.button("▶️ Запустить в manual режиме", use_container_width=True)
 
-    if not run_manual:
+    if models_cfg is None:
+        st.error("Невозможно запустить manual mode: отсутствует валидный models.yaml")
         return
 
-    if models_cfg is None or pipeline_cfg is None:
-        st.error("Невозможно запустить manual mode: отсутствуют валидные конфиги")
+    try:
+        manual_pipeline = build_manual_pipeline_from_ui(models_cfg, pipeline_cfg)
+        with st.expander("Предпросмотр pipeline (JSON)"):
+            st.json(manual_pipeline.model_dump())
+    except Exception as exc:  # noqa: BLE001
+        st.error("Ошибка в конфигурации manual pipeline")
+        st.exception(exc)
+        return
+
+    run_manual = st.button("▶️ Запустить в manual режиме", use_container_width=True)
+    if not run_manual:
         return
 
     if not text_input.strip():
@@ -162,8 +278,19 @@ def render_manual_tab(models_cfg: object | None, pipeline_cfg: PipelineConfig | 
     with st.spinner("Выполнение manual режима..."):
         try:
             engine, _ = build_engine(models_cfg)
-            result = engine.run(pipeline_cfg, user_input=text_input)
+            result = engine.run(manual_pipeline, user_input=text_input)
             st.success("Manual run завершён")
+
+            st.subheader("Промежуточные результаты")
+            for step in result.steps:
+                with st.expander(f"Этап {step.stage_id} ({step.stage_type})"):
+                    for model_name, output in step.model_outputs.items():
+                        st.markdown(f"**{model_name}**")
+                        st.code(output[:1500])
+                    st.markdown("**Aggregated output**")
+                    st.write(step.aggregated_output)
+
+            st.subheader("Финальный результат")
             st.write(result.final_output)
         except Exception as exc:  # noqa: BLE001
             st.exception(exc)

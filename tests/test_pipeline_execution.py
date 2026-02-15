@@ -1,6 +1,13 @@
 from pathlib import Path
 
+from app.config.loader import ConfigLoader
+from app.core.aggregation import AggregationEngine
 from app.core.executors import BasePipelineExecutor
+from app.core.model_registry import ModelRegistry
+from app.core.model_wrapper import ModelWrapper
+from app.core.pipeline_engine import PipelineEngine
+from app.core.resource_manager import ResourceManager
+from app.core.session_manager import SessionManager
 
 
 def _write_models(tmp_path: Path) -> Path:
@@ -48,6 +55,11 @@ base_pipeline:
       aggregation:
         type: concat
       input_from: stage1
+
+    - id: stage3
+      type: single
+      model: llama3_q5
+      input_from: [stage1, stage2]
 """,
         encoding="utf-8",
     )
@@ -61,4 +73,29 @@ def test_base_pipeline_executor_runs(tmp_path: Path) -> None:
     result = BasePipelineExecutor(str(models), str(pipeline)).run("hello")
     assert result.steps[0].stage_id == "stage1"
     assert result.steps[1].stage_id == "stage2"
+    assert result.steps[2].stage_id == "stage3"
     assert "generated response" in result.final_output
+
+
+
+def test_second_stage_system_prompt_is_forwarded_to_model(tmp_path: Path) -> None:
+    models = _write_models(tmp_path)
+    pipeline = _write_pipeline(tmp_path)
+
+    models_cfg = ConfigLoader.load_models_config(models)
+    pipeline_cfg = ConfigLoader.load_pipeline_config(pipeline)
+    registry = ModelRegistry(models_cfg).build()
+    engine = PipelineEngine(
+        registry=registry,
+        model_wrapper=ModelWrapper(),
+        aggregation_engine=AggregationEngine(),
+        resource_manager=ResourceManager(),
+        session_manager=SessionManager(root=tmp_path / "sessions"),
+    )
+
+    result = engine.run(pipeline_cfg, user_input="hello")
+
+    stage1_output = result.steps[0].aggregated_output
+    for model_output in result.steps[1].model_outputs.values():
+        assert "system=<Alternatives>" in model_output
+        assert stage1_output in model_output

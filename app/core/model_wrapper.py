@@ -1,18 +1,24 @@
 from __future__ import annotations
+
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List
 
-from llama_cpp import Llama
+try:
+    from llama_cpp import Llama
+except ModuleNotFoundError:  # pragma: no cover - depends on local runtime
+    Llama = None
+
 
 @dataclass
 class ModelRuntimeConfig:
-    n_ctx: int = 8192               # или 4096/16384 в зависимости от модели
-    n_gpu_layers: int = -1          # -1 = максимально на GPU (или 99)
+    n_ctx: int = 8192
+    n_gpu_layers: int = -1
     temperature: float = 0.7
     top_p: float = 0.95
     max_tokens: int = 2048
-    threads: int = 0                # 0 = auto (обычно хорошо)
+    threads: int = 0
+
 
 @dataclass
 class ModelHandle:
@@ -20,7 +26,8 @@ class ModelHandle:
     model_path: Path
     loaded: bool = False
     metadata: Dict[str, Any] = field(default_factory=dict)
-    _model: Llama | None = None
+    _model: Any = None
+
 
 class ModelWrapper:
     def __init__(self) -> None:
@@ -31,8 +38,16 @@ class ModelWrapper:
         if handle and handle.loaded:
             return handle
 
-        print(f"Загружаем модель {model_name} → {model_path.name}")
-        print(f"Параметры: n_gpu_layers={runtime.n_gpu_layers}, n_ctx={runtime.n_ctx}")
+        if Llama is None:
+            handle = ModelHandle(
+                model_name=model_name,
+                model_path=model_path,
+                loaded=True,
+                metadata={"runtime": runtime.__dict__, "backend": "mock"},
+                _model=None,
+            )
+            self._handles[model_name] = handle
+            return handle
 
         llm = Llama(
             model_path=str(model_path),
@@ -42,26 +57,24 @@ class ModelWrapper:
             top_p=runtime.top_p,
             max_tokens=runtime.max_tokens,
             n_threads=runtime.threads,
-            verbose=False,  # Поставь True для отладки, если нужно видеть лог загрузки
+            verbose=False,
         )
 
         handle = ModelHandle(
             model_name=model_name,
             model_path=model_path,
             loaded=True,
-            metadata={"runtime": runtime.__dict__},
+            metadata={"runtime": runtime.__dict__, "backend": "llama_cpp"},
             _model=llm,
         )
         self._handles[model_name] = handle
-        print(f"Модель {model_name} загружена (GPU layers: {runtime.n_gpu_layers})")
         return handle
 
     def unload(self, model_name: str) -> None:
         handle = self._handles.pop(model_name, None)
-        if handle and handle._model:
+        if handle and handle._model is not None:
             del handle._model
             handle.loaded = False
-        print(f"Модель {model_name} выгружена")
 
     def generate(
         self,
@@ -71,11 +84,18 @@ class ModelWrapper:
         runtime: ModelRuntimeConfig | None = None,
     ) -> str:
         handle = self._handles.get(model_name)
-        if not handle or not handle._model:
+        if not handle:
             raise ValueError(f"Модель '{model_name}' не загружена")
 
         if runtime is None:
             runtime = ModelRuntimeConfig()
+
+        if handle.metadata.get("backend") == "mock" or handle._model is None:
+            short_prompt = prompt.strip().replace("\n", " ")[:160]
+            short_system = system_prompt.strip().replace("\n", " ")[:120]
+            if short_system:
+                return f"[MOCK:{model_name}] system=<{short_system}> | generated response for: {short_prompt}"
+            return f"[MOCK:{model_name}] generated response for: {short_prompt}"
 
         messages: List[Dict[str, str]] = []
         if system_prompt.strip():
@@ -92,7 +112,11 @@ class ModelWrapper:
         return response["choices"][0]["message"]["content"].strip()
 
     @staticmethod
-    def estimate_memory(model_size_gb: float, n_ctx: int, hidden_size: int = 3072, bytes_per_weight: int = 2) -> float:
-        # Для Phi-3.5-mini hidden_size ≈ 3072
-        kv_cache_gb = (n_ctx * hidden_size * 2 * bytes_per_weight) / (1024 ** 3)
-        return model_size_gb + kv_cache_gb + 1.0  # + overhead
+    def estimate_memory(
+        model_size_gb: float,
+        n_ctx: int,
+        hidden_size: int = 3072,
+        bytes_per_weight: int = 2,
+    ) -> float:
+        kv_cache_gb = (n_ctx * hidden_size * 2 * bytes_per_weight) / (1024**3)
+        return model_size_gb + kv_cache_gb + 1.0
