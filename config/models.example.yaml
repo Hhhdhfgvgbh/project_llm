@@ -13,6 +13,7 @@ models:
     description: "Llama 3 8B Q5_K_M"
     quantization: "Q5_K_M"
     required_for_base: true
+    strip_reasoning: true
     overrides:
       n_ctx: 16384
       n_gpu_layers: 35
@@ -21,3 +22,4 @@ models:
     description: "Mistral 7B Q4_K_M"
     quantization: "Q4_K_M"
     required_for_base: false
+    strip_reasoning: true

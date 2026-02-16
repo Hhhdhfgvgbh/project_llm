@@ -76,6 +76,7 @@ def build_manual_pipeline_from_ui(models_cfg: object, fallback_pipeline: Pipelin
         stage_id = st.text_input("ID стадии", value=f"manual_stage_{idx + 1}", key=f"m_id_{idx}")
         stage_type = st.selectbox("Тип стадии", ["single", "multi"], key=f"m_type_{idx}")
         system_prompt = st.text_area("System prompt", key=f"m_prompt_{idx}", height=80)
+        instructions = st.text_area("Instructions (необязательно)", key=f"m_instructions_{idx}", height=80)
 
         col1, col2, col3 = st.columns(3)
         with col1:
@@ -108,6 +109,7 @@ def build_manual_pipeline_from_ui(models_cfg: object, fallback_pipeline: Pipelin
             "id": stage_id.strip() or f"manual_stage_{idx + 1}",
             "type": stage_type,
             "system_prompt": system_prompt,
+            "instructions": instructions,
             "output_mode": output_mode,
             "generation": generation,
         }

@@ -6,6 +6,7 @@ base_pipeline:
       type: single
       model: llama3_q5
       system_prompt: "You are an expert analyst."
+      instructions: "Сконцентрируйся на фактах и кратком выводе."
       generation:
         temperature: 0.6
       output_mode: question_and_answer

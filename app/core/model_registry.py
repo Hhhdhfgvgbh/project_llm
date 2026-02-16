@@ -16,6 +16,7 @@ class RegisteredModel:
     description: str
     quantization: str
     file_size_gb: float
+    strip_reasoning: bool
 
 
 class ModelRegistry:
@@ -44,6 +45,7 @@ class ModelRegistry:
                 description=model.description,
                 quantization=model.quantization.value,
                 file_size_gb=candidate.stat().st_size / (1024**3),
+                strip_reasoning=model.strip_reasoning,
             )
 
         return self

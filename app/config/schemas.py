@@ -42,6 +42,7 @@ class ModelDefinition(BaseModel):
     description: str = ""
     quantization: Quantization
     required_for_base: bool = False
+    strip_reasoning: bool = True
     overrides: ModelOverrides = Field(default_factory=ModelOverrides)
 
 
@@ -97,6 +98,7 @@ class StageSingle(BaseModel):
     type: Literal["single"]
     model: str
     system_prompt: str = ""
+    instructions: str = ""
     input_from: str | list[str] | None = None
     output_mode: StageOutputMode = StageOutputMode.ANSWER_ONLY
     generation: dict[str, Any] = Field(default_factory=dict)
@@ -107,6 +109,7 @@ class StageMulti(BaseModel):
     type: Literal["multi"]
     models: list[str]
     system_prompt: str = ""
+    instructions: str = ""
     input_from: str | list[str] | None = None
     output_mode: StageOutputMode = StageOutputMode.ANSWER_ONLY
     generation: dict[str, Any] = Field(default_factory=dict)
