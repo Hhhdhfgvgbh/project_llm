@@ -147,3 +147,37 @@ base_pipeline:
 
     config = ConfigLoader.load_pipeline_config(path)
     assert config.base_pipeline.stages[0].instructions == "private"
+
+
+def test_pipeline_supports_named_variants(tmp_path: Path) -> None:
+    path = tmp_path / "pipeline.yaml"
+    path.write_text(
+        """
+version: 1
+base_pipeline:
+  stages:
+    - id: stage1
+      type: single
+      model: llama3_q5
+pipelines:
+  short:
+    stages:
+      - id: stage1
+        type: single
+        model: llama3_q5
+  review:
+    stages:
+      - id: stage1
+        type: single
+        model: llama3_q5
+      - id: stage2
+        type: single
+        model: mistral_q4
+        input_from: stage1
+""",
+        encoding="utf-8",
+    )
+
+    config = ConfigLoader.load_pipeline_config(path)
+    assert config.list_pipelines() == ["base_pipeline", "short", "review"]
+    assert config.get_pipeline("review").stages[1].id == "stage2"
