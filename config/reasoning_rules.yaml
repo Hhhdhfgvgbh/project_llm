@@ -1,0 +1,8 @@
+version: 1
+universal:
+  patterns:
+    - "<think>.*?</think>"
+    - "<reasoning>.*?</reasoning>"
+    - "<analysis>.*?</analysis>"
+    - "<reflection>.*?</reflection>"
+models: {}

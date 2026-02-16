@@ -13,6 +13,7 @@ models:
     description: "Phi-3.5-mini-instruct-Q5_K_M"
     quantization: "Q5_K_M"
     required_for_base: true
+    strip_reasoning: true
     overrides:
       n_ctx: 16384
       n_gpu_layers: 35
@@ -21,6 +22,7 @@ models:
     description: "DeepSeek-R1-Distill-Llama-8B-Q5_K_M"
     quantization: "Q5_K_M"
     required_for_base: true
+    strip_reasoning: true
     overrides:
       n_ctx: 16384
       n_gpu_layers: 35

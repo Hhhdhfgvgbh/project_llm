@@ -13,6 +13,7 @@ from app.config.schemas import (
 from app.core.aggregation import AggregationEngine
 from app.core.model_registry import ModelRegistry, RegisteredModel
 from app.core.model_wrapper import ModelRuntimeConfig, ModelWrapper
+from app.core.reasoning_sanitizer import ReasoningSanitizer
 from app.core.resource_manager import ResourceManager
 from app.core.session_manager import SessionManager
 
@@ -39,12 +40,14 @@ class PipelineEngine:
         aggregation_engine: AggregationEngine,
         resource_manager: ResourceManager,
         session_manager: SessionManager,
+        reasoning_sanitizer: ReasoningSanitizer | None = None,
     ) -> None:
         self.registry = registry
         self.model_wrapper = model_wrapper
         self.aggregation_engine = aggregation_engine
         self.resource_manager = resource_manager
         self.session_manager = session_manager
+        self.reasoning_sanitizer = reasoning_sanitizer or ReasoningSanitizer()
 
     def run(
         self,
@@ -60,7 +63,7 @@ class PipelineEngine:
 
         session_path = self.session_manager.create_session() if session_enabled else None
 
-        for index, stage in enumerate(pipeline.base_pipeline.stages, start=1):
+        for stage in pipeline.base_pipeline.stages:
             incoming = self._resolve_stage_input(
                 user_input=user_input,
                 stage_input_from=stage.input_from,
@@ -98,7 +101,6 @@ class PipelineEngine:
             self.session_manager.write_final_output(session_path, final_output, mode="base")
         return PipelineResult(final_output=final_output, steps=steps)
 
-
     @staticmethod
     def _resolve_stage_input(user_input: str, stage_input_from: str | list[str] | None, outputs: dict[str, str]) -> str:
         if stage_input_from is None:
@@ -114,6 +116,16 @@ class PipelineEngine:
         if output_mode == StageOutputMode.QUESTION_AND_ANSWER:
             return f"Question:\n{incoming}\n\nAnswer:\n{response}"
         return response
+
+    @staticmethod
+    def _compose_model_input(instructions: str, incoming: str) -> str:
+        prompt = instructions.strip()
+        if not prompt:
+            return incoming
+        payload = incoming.strip()
+        if not payload:
+            return prompt
+        return f"{prompt}\n\n{payload}"
 
     def _execute_single(
         self,
@@ -132,7 +144,9 @@ class PipelineEngine:
         )
 
         self.model_wrapper.load(model.name, model.path, runtime)
-        output = self.model_wrapper.generate(model.name, incoming, stage.system_prompt, runtime)
+        stage_input = self._compose_model_input(stage.instructions, incoming)
+        output = self.model_wrapper.generate(model.name, stage_input, stage.system_prompt, runtime)
+        output = self.reasoning_sanitizer.sanitize(output, model.name, model.strip_reasoning)
         self.model_wrapper.unload(model.name)
 
         return StageExecution(
@@ -152,6 +166,8 @@ class PipelineEngine:
         model_outputs: dict[str, str] = {}
         responses: list[str] = []
 
+        stage_input = self._compose_model_input(stage.instructions, incoming)
+
         for model_name in stage.models:
             model = self._require_model(model_name)
             runtime = self._runtime_config(model, stage.generation)
@@ -163,18 +179,28 @@ class PipelineEngine:
             )
 
             self.model_wrapper.load(model.name, model.path, runtime)
-            text = self.model_wrapper.generate(model.name, incoming, stage.system_prompt, runtime)
+            text = self.model_wrapper.generate(model.name, stage_input, stage.system_prompt, runtime)
+            text = self.reasoning_sanitizer.sanitize(text, model.name, model.strip_reasoning)
             self.model_wrapper.unload(model.name)
 
             model_outputs[model.name] = text
             responses.append(text)
 
         aggregation = self.aggregation_engine.aggregate(responses, self._aggregation_cfg(stage.aggregation))
+        aggregated_output = aggregation.output
+        if stage.aggregation.synthesis_model:
+            synthesis_model = self.registry.models.get(stage.aggregation.synthesis_model)
+            if synthesis_model is not None:
+                aggregated_output = self.reasoning_sanitizer.sanitize(
+                    aggregated_output,
+                    synthesis_model.name,
+                    synthesis_model.strip_reasoning,
+                )
         return StageExecution(
             stage_id=stage.id,
             stage_type="multi",
             model_outputs=model_outputs,
-            aggregated_output=aggregation.output,
+            aggregated_output=aggregated_output,
         )
 
     @staticmethod
