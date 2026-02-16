@@ -28,3 +28,25 @@ base_pipeline:
         type: synthesis
         synthesis_model: llama3_q5
       input_from: stage2
+
+
+pipelines:
+  quick_summary:
+    execution_mode: sequential
+    stages:
+      - id: stage1
+        type: single
+        model: llama3_q5
+        system_prompt: "Summarize in 3 bullet points."
+  deep_review:
+    execution_mode: sequential
+    stages:
+      - id: stage1
+        type: single
+        model: mistral_q4
+        system_prompt: "Analyze risks and assumptions."
+      - id: stage2
+        type: single
+        model: llama3_q5
+        system_prompt: "Create final recommendation."
+        input_from: stage1

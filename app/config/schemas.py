@@ -169,6 +169,7 @@ class BasePipeline(BaseModel):
 class PipelineConfig(BaseModel):
     version: int
     base_pipeline: BasePipeline
+    pipelines: dict[str, BasePipeline] = Field(default_factory=dict)
 
     @field_validator("version")
     @classmethod
@@ -176,6 +177,16 @@ class PipelineConfig(BaseModel):
         if value != 1:
             raise ValueError("Only pipeline config version=1 is supported")
         return value
+
+    def list_pipelines(self) -> list[str]:
+        return ["base_pipeline", *self.pipelines.keys()]
+
+    def get_pipeline(self, name: str) -> BasePipeline:
+        if name == "base_pipeline":
+            return self.base_pipeline
+        if name not in self.pipelines:
+            raise KeyError(f"Unknown pipeline '{name}'")
+        return self.pipelines[name]
 
 
 def raise_config_error(context: str, error: ValidationError) -> ValueError:

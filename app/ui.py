@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from pathlib import Path
 
 import psutil
@@ -57,6 +58,10 @@ def build_engine(models_cfg: object) -> tuple[PipelineEngine, ModelRegistry]:
         resource_manager=ResourceManager(),
         session_manager=SessionManager(),
     )
+    overrides = st.session_state.get("strip_reasoning_overrides", {})
+    for name, value in overrides.items():
+        if name in registry.models:
+            registry.models[name].strip_reasoning = bool(value)
     return engine, registry
 
 
@@ -75,8 +80,30 @@ def build_manual_pipeline_from_ui(models_cfg: object, fallback_pipeline: Pipelin
         st.markdown(f"### Стадия {idx + 1}")
         stage_id = st.text_input("ID стадии", value=f"manual_stage_{idx + 1}", key=f"m_id_{idx}")
         stage_type = st.selectbox("Тип стадии", ["single", "multi"], key=f"m_type_{idx}")
-        system_prompt = st.text_area("System prompt", key=f"m_prompt_{idx}", height=80)
-        instructions = st.text_area("Instructions (необязательно)", key=f"m_instructions_{idx}", height=80)
+        show_prompt_key = f"m_show_prompt_{idx}"
+        show_instructions_key = f"m_show_instructions_{idx}"
+        st.session_state.setdefault(show_prompt_key, False)
+        st.session_state.setdefault(show_instructions_key, False)
+
+        prompt_btn_label = "➖ Скрыть System prompt" if st.session_state[show_prompt_key] else "➕ Добавить System prompt"
+        instructions_btn_label = (
+            "➖ Скрыть Instructions" if st.session_state[show_instructions_key] else "➕ Добавить Instructions"
+        )
+
+        btn_col1, btn_col2 = st.columns(2)
+        with btn_col1:
+            if st.button(prompt_btn_label, key=f"m_prompt_btn_{idx}", use_container_width=True):
+                st.session_state[show_prompt_key] = not st.session_state[show_prompt_key]
+        with btn_col2:
+            if st.button(instructions_btn_label, key=f"m_instructions_btn_{idx}", use_container_width=True):
+                st.session_state[show_instructions_key] = not st.session_state[show_instructions_key]
+
+        system_prompt = ""
+        if st.session_state[show_prompt_key]:
+            system_prompt = st.text_area("System prompt", key=f"m_prompt_{idx}", height=80)
+        instructions = ""
+        if st.session_state[show_instructions_key]:
+            instructions = st.text_area("Instructions (необязательно)", key=f"m_instructions_{idx}", height=80)
 
         col1, col2, col3 = st.columns(3)
         with col1:
@@ -212,6 +239,16 @@ def render_sidebar(models_cfg: object | None, pipeline_cfg: PipelineConfig | Non
 
 def render_base_tab(models_cfg: object | None, pipeline_cfg: PipelineConfig | None) -> None:
     st.header("Базовый режим (фиксированный pipeline.yaml)")
+
+    selected_pipeline_name = "base_pipeline"
+    if pipeline_cfg is not None:
+        pipeline_names = pipeline_cfg.list_pipelines()
+        selected_pipeline_name = st.selectbox(
+            "Пайплайн",
+            options=pipeline_names,
+            format_func=lambda value: "base_pipeline (по умолчанию)" if value == "base_pipeline" else value,
+        )
+
     text_input = st.text_area("Входной текст", height=200, placeholder="Вставьте запрос или документ...")
 
     run_base = st.button("▶️ Запустить базовый пайплайн", type="primary", use_container_width=True)
@@ -234,8 +271,14 @@ def render_base_tab(models_cfg: object | None, pipeline_cfg: PipelineConfig | No
                 st.error("Base mode заблокирован: отсутствуют обязательные модели")
                 return
 
-            result = engine.run(pipeline_cfg, user_input=text_input)
+            selected_pipeline = pipeline_cfg.get_pipeline(selected_pipeline_name)
+            run_pipeline = pipeline_cfg.model_copy(update={"base_pipeline": selected_pipeline})
+
+            start = time.perf_counter()
+            result = engine.run(run_pipeline, user_input=text_input)
+            elapsed = time.perf_counter() - start
             st.success("Готово")
+            st.metric("Время полного ответа", f"{elapsed:.2f} сек")
 
             st.subheader("Промежуточные результаты")
             for step in result.steps:
@@ -288,8 +331,11 @@ def render_manual_tab(models_cfg: object | None, pipeline_cfg: PipelineConfig | 
     with st.spinner("Выполнение manual режима..."):
         try:
             engine, _ = build_engine(models_cfg)
+            start = time.perf_counter()
             result = engine.run(manual_pipeline, user_input=text_input)
+            elapsed = time.perf_counter() - start
             st.success("Manual run завершён")
+            st.metric("Время полного ответа", f"{elapsed:.2f} сек")
 
             st.subheader("Промежуточные результаты")
             for step in result.steps:
@@ -332,15 +378,28 @@ def render_models_tab(models_cfg: object | None) -> None:
         st.error("models.yaml не загружен")
         return
 
+    if "strip_reasoning_overrides" not in st.session_state:
+        st.session_state["strip_reasoning_overrides"] = {}
+
     _, registry = build_engine(models_cfg)
+    overrides: dict[str, bool] = st.session_state["strip_reasoning_overrides"]
+
+    st.caption("Переключатели ниже меняют очистку рассуждений только для текущей сессии UI.")
     for model in registry.list_models():
-        col1, col2, col3 = st.columns([3, 2, 1])
+        overrides.setdefault(model.name, model.strip_reasoning)
+        col1, col2, col3 = st.columns([3, 2, 2])
         with col1:
             st.write(f"**{model.name}** — {model.path}")
+            st.caption(model.description or "Описание не задано")
         with col2:
             st.write(f"quant: {model.quantization} | ctx: {model.generation.n_ctx}")
         with col3:
-            st.write("✅")
+            toggled = st.toggle(
+                "Очистка рассуждений",
+                value=overrides[model.name],
+                key=f"strip_reasoning_toggle_{model.name}",
+            )
+            overrides[model.name] = toggled
 
     if registry.warnings:
         st.warning("Некоторые модели недоступны:")
