@@ -17,7 +17,11 @@ class ModelRuntimeConfig:
     temperature: float = 0.7
     top_p: float = 0.95
     max_tokens: int = 2048
-    threads: int = 0
+    threads: int = field(
+        default_factory=lambda: (
+            1 if ModelRuntimeConfig._is_full_gpu() else max(1, os.cpu_count() // 2)
+        )
+    )
 
 
 @dataclass
@@ -33,7 +37,9 @@ class ModelWrapper:
     def __init__(self) -> None:
         self._handles: Dict[str, ModelHandle] = {}
 
-    def load(self, model_name: str, model_path: Path, runtime: ModelRuntimeConfig) -> ModelHandle:
+    def load(
+        self, model_name: str, model_path: Path, runtime: ModelRuntimeConfig
+    ) -> ModelHandle:
         handle = self._handles.get(model_name)
         if handle and handle.loaded:
             return handle
@@ -58,6 +64,11 @@ class ModelWrapper:
             max_tokens=runtime.max_tokens,
             n_threads=runtime.threads,
             verbose=False,
+            #
+            use_mlock=False,  # не блокировать RAM (полезно при нехватке памяти)
+            use_mmap=True,  # memory-mapped файл — быстрее загрузка, меньше RAM
+            n_batch=512,  # размер батча для prompt processing (по умолчанию 512)
+            flash_attn=True,  # если llama_cpp собран с поддержкой)
         )
 
         handle = ModelHandle(
