@@ -79,31 +79,42 @@ def build_manual_pipeline_from_ui(models_cfg: object, fallback_pipeline: Pipelin
     for idx in range(int(stages_count)):
         st.markdown(f"### Стадия {idx + 1}")
         stage_id = st.text_input("ID стадии", value=f"manual_stage_{idx + 1}", key=f"m_id_{idx}")
-        stage_type = st.selectbox("Тип стадии", ["single", "multi"], key=f"m_type_{idx}")
-        show_prompt_key = f"m_show_prompt_{idx}"
-        show_instructions_key = f"m_show_instructions_{idx}"
-        st.session_state.setdefault(show_prompt_key, False)
-        st.session_state.setdefault(show_instructions_key, False)
-
-        prompt_btn_label = "➖ Скрыть System prompt" if st.session_state[show_prompt_key] else "➕ Добавить System prompt"
-        instructions_btn_label = (
-            "➖ Скрыть Instructions" if st.session_state[show_instructions_key] else "➕ Добавить Instructions"
-        )
-
-        btn_col1, btn_col2 = st.columns(2)
-        with btn_col1:
-            if st.button(prompt_btn_label, key=f"m_prompt_btn_{idx}", use_container_width=True):
-                st.session_state[show_prompt_key] = not st.session_state[show_prompt_key]
-        with btn_col2:
-            if st.button(instructions_btn_label, key=f"m_instructions_btn_{idx}", use_container_width=True):
-                st.session_state[show_instructions_key] = not st.session_state[show_instructions_key]
-
+        stage_type = st.selectbox("Тип стадии", ["single", "multi", "translate"], key=f"m_type_{idx}")
         system_prompt = ""
-        if st.session_state[show_prompt_key]:
-            system_prompt = st.text_area("System prompt", key=f"m_prompt_{idx}", height=80)
         instructions = ""
-        if st.session_state[show_instructions_key]:
-            instructions = st.text_area("Instructions (необязательно)", key=f"m_instructions_{idx}", height=80)
+        source_language = ""
+        target_language = ""
+
+        if stage_type == "translate":
+            lang_col1, lang_col2 = st.columns(2)
+            with lang_col1:
+                source_language = st.text_input("Исходный язык", value="Russian", key=f"m_src_lang_{idx}")
+            with lang_col2:
+                target_language = st.text_input("Целевой язык", value="English", key=f"m_tgt_lang_{idx}")
+            st.caption("Для translate-стадии используется фиксированный шаблон TranslateGemma из runtime-метода.")
+        else:
+            show_prompt_key = f"m_show_prompt_{idx}"
+            show_instructions_key = f"m_show_instructions_{idx}"
+            st.session_state.setdefault(show_prompt_key, False)
+            st.session_state.setdefault(show_instructions_key, False)
+
+            prompt_btn_label = "➖ Скрыть System prompt" if st.session_state[show_prompt_key] else "➕ Добавить System prompt"
+            instructions_btn_label = (
+                "➖ Скрыть Instructions" if st.session_state[show_instructions_key] else "➕ Добавить Instructions"
+            )
+
+            btn_col1, btn_col2 = st.columns(2)
+            with btn_col1:
+                if st.button(prompt_btn_label, key=f"m_prompt_btn_{idx}", use_container_width=True):
+                    st.session_state[show_prompt_key] = not st.session_state[show_prompt_key]
+            with btn_col2:
+                if st.button(instructions_btn_label, key=f"m_instructions_btn_{idx}", use_container_width=True):
+                    st.session_state[show_instructions_key] = not st.session_state[show_instructions_key]
+
+            if st.session_state[show_prompt_key]:
+                system_prompt = st.text_area("System prompt", key=f"m_prompt_{idx}", height=80)
+            if st.session_state[show_instructions_key]:
+                instructions = st.text_area("Instructions (необязательно)", key=f"m_instructions_{idx}", height=80)
 
         col1, col2, col3 = st.columns(3)
         with col1:
@@ -135,11 +146,15 @@ def build_manual_pipeline_from_ui(models_cfg: object, fallback_pipeline: Pipelin
         stage_data: dict = {
             "id": stage_id.strip() or f"manual_stage_{idx + 1}",
             "type": stage_type,
-            "system_prompt": system_prompt,
-            "instructions": instructions,
             "output_mode": output_mode,
             "generation": generation,
         }
+        if stage_type == "translate":
+            stage_data["source_language"] = source_language
+            stage_data["target_language"] = target_language
+        else:
+            stage_data["system_prompt"] = system_prompt
+            stage_data["instructions"] = instructions
 
         if idx > 0:
             input_count = st.number_input(
@@ -165,6 +180,15 @@ def build_manual_pipeline_from_ui(models_cfg: object, fallback_pipeline: Pipelin
 
         if stage_type == "single":
             stage_data["model"] = st.selectbox("Модель", options=available_models, key=f"m_model_{idx}")
+        elif stage_type == "translate":
+            translate_default = "translategemma" if "translategemma" in available_models else available_models[0]
+            default_index = available_models.index(translate_default)
+            stage_data["model"] = st.selectbox(
+                "Модель для перевода",
+                options=available_models,
+                index=default_index,
+                key=f"m_translate_model_{idx}",
+            )
         else:
             selected = st.multiselect(
                 "Модели",

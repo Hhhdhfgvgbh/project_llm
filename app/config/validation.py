@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from app.config.schemas import ModelsConfig, PipelineConfig, StageMulti, StageSingle
+from app.config.schemas import ModelsConfig, PipelineConfig, StageMulti, StageSingle, StageTranslate
 
 
 @dataclass
@@ -50,6 +50,8 @@ class RuntimeValidator:
         for stage in pipeline.base_pipeline.stages:
             stage_models: list[str]
             if isinstance(stage, StageSingle):
+                stage_models = [stage.model]
+            elif isinstance(stage, StageTranslate):
                 stage_models = [stage.model]
             elif isinstance(stage, StageMulti):
                 stage_models = list(stage.models)

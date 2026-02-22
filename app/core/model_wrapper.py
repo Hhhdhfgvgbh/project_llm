@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import os
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -118,6 +119,33 @@ class ModelWrapper:
         )
 
         return response["choices"][0]["message"]["content"].strip()
+
+
+    def generate_translategemma(
+        self,
+        model_name: str,
+        text: str,
+        source_language: str,
+        target_language: str,
+        runtime: ModelRuntimeConfig | None = None,
+    ) -> str:
+        system_prompt = (
+            "You are TranslateGemma, a specialized machine translation model. "
+            "Translate only from the source language to the target language. "
+            "Return translation only with no explanations and no additional text."
+        )
+        prompt = (
+            f"Source language: {source_language.strip()}\n"
+            f"Target language: {target_language.strip()}\n"
+            "Task: Translate the input text exactly and preserve meaning, names, numbers and punctuation.\n\n"
+            f"Input text:\n{text.strip()}"
+        )
+        return self.generate(
+            model_name=model_name,
+            prompt=prompt,
+            system_prompt=system_prompt,
+            runtime=runtime,
+        )
 
     @staticmethod
     def estimate_memory(

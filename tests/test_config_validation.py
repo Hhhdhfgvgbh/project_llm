@@ -181,3 +181,26 @@ pipelines:
     config = ConfigLoader.load_pipeline_config(path)
     assert config.list_pipelines() == ["base_pipeline", "short", "review"]
     assert config.get_pipeline("review").stages[1].id == "stage2"
+
+
+def test_pipeline_supports_translate_stage_fields(tmp_path: Path) -> None:
+    path = tmp_path / "pipeline.yaml"
+    path.write_text(
+        """
+version: 1
+base_pipeline:
+  stages:
+    - id: tr
+      type: translate
+      model: llama3_q5
+      source_language: Russian
+      target_language: English
+""",
+        encoding="utf-8",
+    )
+
+    config = ConfigLoader.load_pipeline_config(path)
+    stage = config.base_pipeline.stages[0]
+    assert stage.type == "translate"
+    assert stage.source_language == "Russian"
+    assert stage.target_language == "English"
