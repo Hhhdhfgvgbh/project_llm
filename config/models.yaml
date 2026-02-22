@@ -8,9 +8,9 @@ defaults:
   max_tokens: 1024
   threads: 8
 models:
-  phi:
+  phi_3:
     file: "Phi-3.5-mini-instruct-Q5_K_M.gguf"
-    description: "Phi-3.5-mini-instruct-Q5_K_M"
+    description: "2.8 ГБ, рассуждает, dense  3.8B, хорош математике, логике и кодинге среди tiny-моделей, отличное следование инструкциям, август 2024"
     quantization: "Q5_K_M"
     required_for_base: true
     strip_reasoning: true
@@ -19,7 +19,7 @@ models:
       n_gpu_layers: 35
   deepseek:
     file: "DeepSeek-R1-Distill-Llama-8B-Q5_K_M.gguf"
-    description: "DeepSeek-R1-Distill-Llama-8B-Q5_K_M"
+    description: "5.7 ГБ, рассуждает,  dense 8B, отличный в математике, сильный в многошаговых рассуждениях и кодинге, хорошая фактическая точность, январь 2025"
     quantization: "Q5_K_M"
     required_for_base: true
     strip_reasoning: true
@@ -28,16 +28,16 @@ models:
       n_gpu_layers: 35
   gemma_2:
     file: "gemma-2-9b-it-Q5_K_M.gguf"
-    description: "gemma-2-9b-it-Q5_K_M"
+    description: "6.6 ГБ, рассуждает, dense 9B, неплохой баланс в QA/саммаризации/рассуждениях и следовании инструкциям, больше галлюцинаций в фактах, июнь 2024"
     quantization: "Q5_K_M"
     required_for_base: true
     strip_reasoning: true
     overrides:
       n_ctx: 16384
       n_gpu_layers: 35
-  essential_rnj:
-    file: "EssentialAI_rnj-1-instruct-Q5_K_M.gguf"
-    description: "не работает?"
+  qwen3:
+    file: "Qwen3-14B-Q5_K_M.gguf"
+    description: "10.5 ГБ, рассуждает, dense 14B, топ в кодинге и математике, сильные рассуждения и следование инструкциям, высокая фактическая точность, май 2025"
     quantization: "Q5_K_M"
     required_for_base: true
     strip_reasoning: true
@@ -46,10 +46,38 @@ models:
       n_gpu_layers: 35
   gemma_3:
     file: "google_gemma-3-12b-it-Q5_K_S.gguf"
-    description: "Гемма 3 8ГБ"
+    description: "8.2 ГБ, рассуждает, dense 12B, сильный в математике, кодинге, мультиязычности и следовании инструкциям, хорошая фактическая точность, март 2025"
     quantization: "Q5_K_M"
     required_for_base: true
     strip_reasoning: true
     overrides:
       n_ctx: 16384
       n_gpu_layers: 35
+  mistral:
+    file: "Mistral-7B-Instruct-v0.3-Q4_K_M.gguf"
+    description: "4.4 ГБ, рассуждает, dense Mistral 7.25B, быстрый, неплохое следование инструкциям, приемлемый код и базовые рассуждения, больше галлюцинаций в фактах, май 2024"
+    quantization: "Q4_K_M"
+    required_for_base: true
+    strip_reasoning: true
+    overrides:
+      n_ctx: 16384
+      n_gpu_layers: 35
+  phi_4:
+    file: "phi-4-Q5_K_M.gguf"
+    description: "10.6 ГБ, рассуждает, dense  14B, phi, один из лучших в математике, кодинге и сложных рассуждениях и следование инструкциям ; высокая фактическая точность , декабрь 2024"
+    quantization: "Q5_K_M"
+    required_for_base: true
+    strip_reasoning: true
+    overrides:
+      n_ctx: 16384
+      n_gpu_layers: 35
+  translategemma:
+    file: "translategemma-12b-it.Q4_K_M.gguf"
+    description: "7.1 ГБ, хорошо переводит, требует специальный системный промпт"
+    quantization: "Q4_K_M"
+    required_for_base: true
+    strip_reasoning: true
+    overrides:
+      n_ctx: 16384
+      n_gpu_layers: 35
+
