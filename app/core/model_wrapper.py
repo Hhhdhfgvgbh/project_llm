@@ -120,32 +120,47 @@ class ModelWrapper:
 
         return response["choices"][0]["message"]["content"].strip()
 
-
     def generate_translategemma(
         self,
         model_name: str,
+        source_language: str,  # ← "en", "ru", "de-DE" и т.д.
+        target_language: str,  # ← "ru", "en", "fr" и т.д.
         text: str,
-        source_language: str,
-        target_language: str,
-        runtime: ModelRuntimeConfig | None = None,
+        runtime: "ModelRuntimeConfig | None" = None,
     ) -> str:
-        system_prompt = (
-            "You are TranslateGemma, a specialized machine translation model. "
-            "Translate only from the source language to the target language. "
-            "Return translation only with no explanations and no additional text."
-        )
-        prompt = (
-            f"Source language: {source_language.strip()}\n"
-            f"Target language: {target_language.strip()}\n"
-            "Task: Translate the input text exactly and preserve meaning, names, numbers and punctuation.\n\n"
-            f"Input text:\n{text.strip()}"
-        )
-        return self.generate(
-            model_name=model_name,
-            prompt=prompt,
-            system_prompt=system_prompt,
-            runtime=runtime,
-        )
+        handle = self._handles.get(model_name)
+        if not handle or handle._model is None:
+            return f"[MOCK TRANSLATE] {source_language} → {target_language}: {text[:150]}..."
+
+        if runtime is None:
+            runtime = ModelRuntimeConfig(temperature=0.1, top_p=0.95, max_tokens=2048)
+
+        # ←←← ТОЧНО ТАКАЯ СТРУКТУРА НУЖНА TranslateGemma ←←←
+        messages = [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "source_lang_code": source_language,  # ← ключ именно такой
+                        "target_lang_code": target_language,  # ← ключ именно такой
+                        "text": text.strip(),
+                    }
+                ],
+            }
+        ]
+
+        try:
+            response = handle._model.create_chat_completion(
+                messages=messages,
+                temperature=runtime.temperature,
+                top_p=runtime.top_p,
+                max_tokens=runtime.max_tokens,
+            )
+            return response["choices"][0]["message"]["content"].strip()
+        except Exception as e:
+            print(f"[TranslateGemma ERROR] {type(e).__name__}: {e}")
+            return f"[Translation error: {str(e)[:200]}]"
 
     @staticmethod
     def estimate_memory(

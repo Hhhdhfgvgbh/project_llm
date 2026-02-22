@@ -62,7 +62,9 @@ class PipelineEngine:
         forwarded_outputs: dict[str, str] = {}
         steps: list[StageExecution] = []
 
-        session_path = self.session_manager.create_session() if session_enabled else None
+        session_path = (
+            self.session_manager.create_session() if session_enabled else None
+        )
 
         for stage in pipeline.base_pipeline.stages:
             incoming = self._resolve_stage_input(
@@ -72,16 +74,24 @@ class PipelineEngine:
             )
 
             if isinstance(stage, StageSingle):
-                step = self._execute_single(stage, incoming, available_ram_gb, available_vram_gb)
+                step = self._execute_single(
+                    stage, incoming, available_ram_gb, available_vram_gb
+                )
             elif isinstance(stage, StageMulti):
-                step = self._execute_multi(stage, incoming, available_ram_gb, available_vram_gb)
+                step = self._execute_multi(
+                    stage, incoming, available_ram_gb, available_vram_gb
+                )
             elif isinstance(stage, StageTranslate):
-                step = self._execute_translate(stage, incoming, available_ram_gb, available_vram_gb)
+                step = self._execute_translate(
+                    stage, incoming, available_ram_gb, available_vram_gb
+                )
             else:
                 raise ValueError(f"Unsupported stage type: {stage}")
 
             stage_outputs[stage.id] = step.aggregated_output
-            forwarded_outputs[stage.id] = self._build_forward_payload(stage.output_mode, incoming, step.aggregated_output)
+            forwarded_outputs[stage.id] = self._build_forward_payload(
+                stage.output_mode, incoming, step.aggregated_output
+            )
             steps.append(step)
 
             if session_path is not None:
@@ -101,11 +111,17 @@ class PipelineEngine:
 
         final_output = stage_outputs[pipeline.base_pipeline.stages[-1].id]
         if session_path is not None:
-            self.session_manager.write_final_output(session_path, final_output, mode="base")
+            self.session_manager.write_final_output(
+                session_path, final_output, mode="base"
+            )
         return PipelineResult(final_output=final_output, steps=steps)
 
     @staticmethod
-    def _resolve_stage_input(user_input: str, stage_input_from: str | list[str] | None, outputs: dict[str, str]) -> str:
+    def _resolve_stage_input(
+        user_input: str,
+        stage_input_from: str | list[str] | None,
+        outputs: dict[str, str],
+    ) -> str:
         if stage_input_from is None:
             return user_input
         if isinstance(stage_input_from, str):
@@ -115,7 +131,9 @@ class PipelineEngine:
         return "\n\n".join(chunks)
 
     @staticmethod
-    def _build_forward_payload(output_mode: StageOutputMode, incoming: str, response: str) -> str:
+    def _build_forward_payload(
+        output_mode: StageOutputMode, incoming: str, response: str
+    ) -> str:
         if output_mode == StageOutputMode.QUESTION_AND_ANSWER:
             return f"Question:\n{incoming}\n\nAnswer:\n{response}"
         return response
@@ -148,8 +166,12 @@ class PipelineEngine:
 
         self.model_wrapper.load(model.name, model.path, runtime)
         stage_input = self._compose_model_input(stage.instructions, incoming)
-        output = self.model_wrapper.generate(model.name, stage_input, stage.system_prompt, runtime)
-        output = self.reasoning_sanitizer.sanitize(output, model.name, model.strip_reasoning)
+        output = self.model_wrapper.generate(
+            model.name, stage_input, stage.system_prompt, runtime
+        )
+        output = self.reasoning_sanitizer.sanitize(
+            output, model.name, model.strip_reasoning
+        )
         self.model_wrapper.unload(model.name)
 
         return StageExecution(
@@ -158,7 +180,6 @@ class PipelineEngine:
             model_outputs={model.name: output},
             aggregated_output=output,
         )
-
 
     def _execute_translate(
         self,
@@ -179,12 +200,14 @@ class PipelineEngine:
         self.model_wrapper.load(model.name, model.path, runtime)
         output = self.model_wrapper.generate_translategemma(
             model_name=model.name,
-            text=incoming,
-            source_language=stage.source_language,
-            target_language=stage.target_language,
+            source_language=stage.source_language,  # ← из твоего StageTranslate
+            target_language=stage.target_language,  # ← из твоего StageTranslate
+            text=incoming,  # или incoming_text / stage_input
             runtime=runtime,
         )
-        output = self.reasoning_sanitizer.sanitize(output, model.name, model.strip_reasoning)
+        output = self.reasoning_sanitizer.sanitize(
+            output, model.name, model.strip_reasoning
+        )
         self.model_wrapper.unload(model.name)
 
         return StageExecution(
@@ -193,6 +216,7 @@ class PipelineEngine:
             model_outputs={model.name: output},
             aggregated_output=output,
         )
+
     def _execute_multi(
         self,
         stage: StageMulti,
@@ -216,17 +240,25 @@ class PipelineEngine:
             )
 
             self.model_wrapper.load(model.name, model.path, runtime)
-            text = self.model_wrapper.generate(model.name, stage_input, stage.system_prompt, runtime)
-            text = self.reasoning_sanitizer.sanitize(text, model.name, model.strip_reasoning)
+            text = self.model_wrapper.generate(
+                model.name, stage_input, stage.system_prompt, runtime
+            )
+            text = self.reasoning_sanitizer.sanitize(
+                text, model.name, model.strip_reasoning
+            )
             self.model_wrapper.unload(model.name)
 
             model_outputs[model.name] = text
             responses.append(text)
 
-        aggregation = self.aggregation_engine.aggregate(responses, self._aggregation_cfg(stage.aggregation))
+        aggregation = self.aggregation_engine.aggregate(
+            responses, self._aggregation_cfg(stage.aggregation)
+        )
         aggregated_output = aggregation.output
         if stage.aggregation.synthesis_model:
-            synthesis_model = self.registry.models.get(stage.aggregation.synthesis_model)
+            synthesis_model = self.registry.models.get(
+                stage.aggregation.synthesis_model
+            )
             if synthesis_model is not None:
                 aggregated_output = self.reasoning_sanitizer.sanitize(
                     aggregated_output,
@@ -241,7 +273,9 @@ class PipelineEngine:
         )
 
     @staticmethod
-    def _runtime_config(model: RegisteredModel, generation: dict[str, Any]) -> ModelRuntimeConfig:
+    def _runtime_config(
+        model: RegisteredModel, generation: dict[str, Any]
+    ) -> ModelRuntimeConfig:
         merged = model.generation.model_copy(update=generation)
         return ModelRuntimeConfig(**merged.model_dump())
 
@@ -258,8 +292,12 @@ class PipelineEngine:
         model_sizes_gb: list[float],
         n_ctx_values: list[int],
     ) -> None:
-        estimate = self.resource_manager.estimate_for_models(model_sizes_gb, n_ctx_values)
-        if not self.resource_manager.can_run(available_ram_gb, available_vram_gb, estimate):
+        estimate = self.resource_manager.estimate_for_models(
+            model_sizes_gb, n_ctx_values
+        )
+        if not self.resource_manager.can_run(
+            available_ram_gb, available_vram_gb, estimate
+        ):
             raise MemoryError(
                 "Insufficient resources for requested stage execution "
                 f"(required RAM~{estimate.required_ram_gb:.2f}GB, VRAM~{estimate.required_vram_gb:.2f}GB)"
