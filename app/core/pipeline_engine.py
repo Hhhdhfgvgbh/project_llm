@@ -9,6 +9,7 @@ from app.config.schemas import (
     StageMulti,
     StageOutputMode,
     StageSingle,
+    StageTranslate,
 )
 from app.core.aggregation import AggregationEngine
 from app.core.model_registry import ModelRegistry, RegisteredModel
@@ -74,6 +75,8 @@ class PipelineEngine:
                 step = self._execute_single(stage, incoming, available_ram_gb, available_vram_gb)
             elif isinstance(stage, StageMulti):
                 step = self._execute_multi(stage, incoming, available_ram_gb, available_vram_gb)
+            elif isinstance(stage, StageTranslate):
+                step = self._execute_translate(stage, incoming, available_ram_gb, available_vram_gb)
             else:
                 raise ValueError(f"Unsupported stage type: {stage}")
 
@@ -156,6 +159,40 @@ class PipelineEngine:
             aggregated_output=output,
         )
 
+
+    def _execute_translate(
+        self,
+        stage: StageTranslate,
+        incoming: str,
+        available_ram_gb: float,
+        available_vram_gb: float,
+    ) -> StageExecution:
+        model = self._require_model(stage.model)
+        runtime = self._runtime_config(model, stage.generation)
+        self._assert_resources(
+            available_ram_gb=available_ram_gb,
+            available_vram_gb=available_vram_gb,
+            model_sizes_gb=[model.file_size_gb],
+            n_ctx_values=[runtime.n_ctx],
+        )
+
+        self.model_wrapper.load(model.name, model.path, runtime)
+        output = self.model_wrapper.generate_translategemma(
+            model_name=model.name,
+            text=incoming,
+            source_language=stage.source_language,
+            target_language=stage.target_language,
+            runtime=runtime,
+        )
+        output = self.reasoning_sanitizer.sanitize(output, model.name, model.strip_reasoning)
+        self.model_wrapper.unload(model.name)
+
+        return StageExecution(
+            stage_id=stage.id,
+            stage_type="translate",
+            model_outputs={model.name: output},
+            aggregated_output=output,
+        )
     def _execute_multi(
         self,
         stage: StageMulti,

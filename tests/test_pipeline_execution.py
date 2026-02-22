@@ -160,3 +160,35 @@ base_pipeline:
     monkeypatch.setattr(context.engine.model_wrapper, "generate", fake_generate)
     result = context.engine.run(context.pipeline, user_input="hello", session_enabled=False)
     assert "<think>hidden</think>" in result.final_output
+
+
+def test_translate_stage_uses_specialized_model_method(tmp_path: Path, monkeypatch) -> None:
+    models = _write_models(tmp_path)
+    pipeline = tmp_path / "pipeline_translate.yaml"
+    pipeline.write_text(
+        """
+version: 1
+base_pipeline:
+  stages:
+    - id: translate
+      type: translate
+      model: llama3_q5
+      source_language: Russian
+      target_language: English
+""",
+        encoding="utf-8",
+    )
+
+    context = BasePipelineExecutor(str(models), str(pipeline)).build()
+
+    called = {}
+
+    def fake_translate(model_name: str, text: str, source_language: str, target_language: str, runtime=None) -> str:
+        called["payload"] = (model_name, text, source_language, target_language)
+        return "translated"
+
+    monkeypatch.setattr(context.engine.model_wrapper, "generate_translategemma", fake_translate)
+    result = context.engine.run(context.pipeline, user_input="Привет", session_enabled=False)
+
+    assert called["payload"] == ("llama3_q5", "Привет", "Russian", "English")
+    assert result.final_output == "translated"

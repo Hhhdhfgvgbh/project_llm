@@ -123,7 +123,18 @@ class StageMulti(BaseModel):
         return value
 
 
-Stage = StageSingle | StageMulti
+class StageTranslate(BaseModel):
+    id: str
+    type: Literal["translate"]
+    model: str
+    source_language: str = Field(min_length=1)
+    target_language: str = Field(min_length=1)
+    input_from: str | list[str] | None = None
+    output_mode: StageOutputMode = StageOutputMode.ANSWER_ONLY
+    generation: dict[str, Any] = Field(default_factory=dict)
+
+
+Stage = StageSingle | StageMulti | StageTranslate
 
 
 class BasePipeline(BaseModel):
