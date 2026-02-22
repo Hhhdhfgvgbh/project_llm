@@ -86,12 +86,49 @@ def build_manual_pipeline_from_ui(models_cfg: object, fallback_pipeline: Pipelin
         target_language = ""
 
         if stage_type == "translate":
+            # ←←← Добавь этот словарь в начало функции build_manual_pipeline_from_ui (один раз)
+            # или вынеси в app/config/schemas.py как LANGUAGE_MAP
+            LANGUAGE_MAP = {
+                "en": "Английский", "ru": "Русский", "de": "Немецкий", "fr": "Французский",
+                "es": "Испанский", "pt": "Португальский", "it": "Итальянский", "nl": "Нидерландский",
+                "pl": "Польский", "zh": "Китайский", "ja": "Японский", "ko": "Корейский",
+                "ar": "Арабский", "tr": "Турецкий", "vi": "Вьетнамский", "th": "Тайский",
+                "id": "Индонезийский", "ms": "Малайский", "hi": "Хинди", "bn": "Бенгальский",
+                "fa": "Персидский", "he": "Иврит", "uk": "Украинский", "sv": "Шведский",
+                "no": "Норвежский", "da": "Датский", "fi": "Финский", "el": "Греческий",
+                "cs": "Чешский", "hu": "Венгерский", "ro": "Румынский", "sk": "Словацкий",
+                "hr": "Хорватский", "bg": "Болгарский", "lt": "Литовский", "lv": "Латвийский",
+                "et": "Эстонский", "sl": "Словенский", "sr": "Сербский", "mk": "Македонский",
+                # Добавляй остальные по мере надобности (модель поддерживает 55+)
+            }
+
+            # Красивый список для выбора
+            LANGUAGE_OPTIONS = sorted([f"{code} — {name}" for code, name in LANGUAGE_MAP.items()])
+
+            st.markdown("### Перевод (StageTranslate)")
             lang_col1, lang_col2 = st.columns(2)
+
             with lang_col1:
-                source_language = st.text_input("Исходный язык", value="Russian", key=f"m_src_lang_{idx}")
+                source_display = st.selectbox(
+                    "Исходный язык",
+                    options=LANGUAGE_OPTIONS,
+                    index=next((i for i, opt in enumerate(LANGUAGE_OPTIONS) if opt.startswith("ru —")), 0),
+                    key=f"m_src_lang_{idx}",
+                    help="Выбирай из списка — сохранится только код (ru, en и т.д.)"
+                )
+                source_language = source_display.split(" — ")[0]  # берём только код
+
             with lang_col2:
-                target_language = st.text_input("Целевой язык", value="English", key=f"m_tgt_lang_{idx}")
-            st.caption("Для translate-стадии используется фиксированный шаблон TranslateGemma из runtime-метода.")
+                target_display = st.selectbox(
+                    "Целевой язык",
+                    options=LANGUAGE_OPTIONS,
+                    index=next((i for i, opt in enumerate(LANGUAGE_OPTIONS) if opt.startswith("en —")), 0),
+                    key=f"m_tgt_lang_{idx}",
+                    help="Выбирай из списка — сохранится только код"
+                )
+                target_language = target_display.split(" — ")[0]
+
+            st.caption("✅ Модель TranslateGemma ожидает **ISO-коды** (ru, en, de-DE и т.д.). Теперь всё понятно и без ошибок.")
         else:
             show_prompt_key = f"m_show_prompt_{idx}"
             show_instructions_key = f"m_show_instructions_{idx}"
