@@ -15,8 +15,12 @@ class RegisteredModel:
     generation: GenerationParams
     description: str
     quantization: str
+    request_style: str
     file_size_gb: float
     strip_reasoning: bool
+    huggingface_repo: str
+    release_date: str
+    parameters_b: float | None
 
 
 class ModelRegistry:
@@ -44,8 +48,12 @@ class ModelRegistry:
                 generation=merged_generation,
                 description=model.description,
                 quantization=model.quantization.value,
+                request_style=model.request_style,
                 file_size_gb=candidate.stat().st_size / (1024**3),
                 strip_reasoning=model.strip_reasoning,
+                huggingface_repo=model.huggingface_repo,
+                release_date=model.release_date,
+                parameters_b=model.parameters_b,
             )
 
         return self

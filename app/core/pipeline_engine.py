@@ -164,7 +164,7 @@ class PipelineEngine:
             n_ctx_values=[runtime.n_ctx],
         )
 
-        self.model_wrapper.load(model.name, model.path, runtime)
+        self.model_wrapper.load(model.name, model.path, runtime, model.request_style)
         stage_input = self._compose_model_input(stage.instructions, incoming)
         output = self.model_wrapper.generate(
             model.name, stage_input, stage.system_prompt, runtime
@@ -197,7 +197,7 @@ class PipelineEngine:
             n_ctx_values=[runtime.n_ctx],
         )
 
-        self.model_wrapper.load(model.name, model.path, runtime)
+        self.model_wrapper.load(model.name, model.path, runtime, model.request_style)
         output = self.model_wrapper.generate_translategemma(
             model_name=model.name,
             source_language=stage.source_language,  # ← из твоего StageTranslate
@@ -239,7 +239,7 @@ class PipelineEngine:
                 n_ctx_values=[runtime.n_ctx],
             )
 
-            self.model_wrapper.load(model.name, model.path, runtime)
+            self.model_wrapper.load(model.name, model.path, runtime, model.request_style)
             text = self.model_wrapper.generate(
                 model.name, stage_input, stage.system_prompt, runtime
             )

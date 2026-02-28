@@ -20,10 +20,12 @@ models:
     quantization: "Q5_K_M"
     required_for_base: true
     strip_reasoning: {str(llama_strip_reasoning).lower()}
+    request_style: openai_chat
   mistral_q4:
     file: "mistral_q4.gguf"
     quantization: "Q4_K_M"
     required_for_base: false
+    request_style: translategemma
 """,
         encoding="utf-8",
     )
@@ -192,3 +194,33 @@ base_pipeline:
 
     assert called["payload"] == ("llama3_q5", "Привет", "Russian", "English")
     assert result.final_output == "translated"
+
+
+def test_model_request_style_is_passed_to_wrapper_load(tmp_path: Path, monkeypatch) -> None:
+    models = _write_models(tmp_path)
+    pipeline = tmp_path / "pipeline_single.yaml"
+    pipeline.write_text(
+        """
+version: 1
+base_pipeline:
+  stages:
+    - id: stage1
+      type: single
+      model: mistral_q4
+""",
+        encoding="utf-8",
+    )
+
+    context = BasePipelineExecutor(str(models), str(pipeline)).build()
+    captured = {}
+
+    original_load = context.engine.model_wrapper.load
+
+    def spy_load(model_name, model_path, runtime, request_style="openai_chat"):
+        captured["request_style"] = request_style
+        return original_load(model_name, model_path, runtime, request_style)
+
+    monkeypatch.setattr(context.engine.model_wrapper, "load", spy_load)
+    context.engine.run(context.pipeline, user_input="hello", session_enabled=False)
+
+    assert captured["request_style"] == "translategemma"

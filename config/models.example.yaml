@@ -11,6 +11,10 @@ models:
   llama3_q5:
     file: "llama3_q5.gguf"
     description: "Llama 3 8B Q5_K_M"
+    huggingface_repo: "meta-llama/Meta-Llama-3-8B-Instruct"
+    release_date: "2024-04"
+    parameters_b: 8.0
+    request_style: "openai_chat"
     quantization: "Q5_K_M"
     required_for_base: true
     strip_reasoning: true
@@ -20,6 +24,10 @@ models:
   mistral_q4:
     file: "mistral_q4.gguf"
     description: "Mistral 7B Q4_K_M"
+    huggingface_repo: "mistralai/Mistral-7B-Instruct-v0.3"
+    release_date: "2024-05"
+    parameters_b: 7.0
+    request_style: "openai_chat"
     quantization: "Q4_K_M"
     required_for_base: false
     strip_reasoning: true

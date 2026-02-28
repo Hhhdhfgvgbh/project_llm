@@ -204,3 +204,32 @@ base_pipeline:
     assert stage.type == "translate"
     assert stage.source_language == "Russian"
     assert stage.target_language == "English"
+
+
+def test_models_config_supports_request_style_and_hf_metadata(tmp_path: Path) -> None:
+    models_dir = tmp_path / "models"
+    models_dir.mkdir()
+    (models_dir / "llama3_q5.gguf").write_text("x", encoding="utf-8")
+
+    path = tmp_path / "models.yaml"
+    path.write_text(
+        """
+version: 1
+models_directory: "{models_dir}"
+models:
+  llama3_q5:
+    file: "llama3_q5.gguf"
+    quantization: "Q5_K_M"
+    request_style: "translategemma"
+    huggingface_repo: "google/example"
+    release_date: "2025-01"
+    parameters_b: 9
+""".format(models_dir=models_dir),
+        encoding="utf-8",
+    )
+
+    config = ConfigLoader.load_models_config(path)
+    model = config.models["llama3_q5"]
+    assert model.request_style == "translategemma"
+    assert model.huggingface_repo == "google/example"
+    assert model.parameters_b == 9

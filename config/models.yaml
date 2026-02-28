@@ -10,74 +10,112 @@ defaults:
 models:
   phi_3:
     file: "Phi-3.5-mini-instruct-Q5_K_M.gguf"
-    description: "2.8 ГБ, рассуждает, dense  3.8B, хорош математике, логике и кодинге среди tiny-моделей, отличное следование инструкциям, август 2024"
+    huggingface_repo: "microsoft/Phi-3.5-mini-instruct"
+    release_date: "2024-08"
+    parameters_b: 3.8
+    description: "Phi-3.5 Mini Instruct: компактная instruct-модель Microsoft, хорошо следует инструкциям, сильна в code/math для своего размера."
     quantization: "Q5_K_M"
-    required_for_base: true
-    strip_reasoning: true
-    overrides:
-      n_ctx: 16384
-      n_gpu_layers: 35
-  deepseek:
-    file: "DeepSeek-R1-Distill-Llama-8B-Q5_K_M.gguf"
-    description: "5.7 ГБ, рассуждает,  dense 8B, отличный в математике, сильный в многошаговых рассуждениях и кодинге, хорошая фактическая точность, январь 2025"
-    quantization: "Q5_K_M"
-    required_for_base: true
-    strip_reasoning: true
-    overrides:
-      n_ctx: 16384
-      n_gpu_layers: 35
-  gemma_2:
-    file: "gemma-2-9b-it-Q5_K_M.gguf"
-    description: "6.6 ГБ, рассуждает, dense 9B, неплохой баланс в QA/саммаризации/рассуждениях и следовании инструкциям, больше галлюцинаций в фактах, июнь 2024"
-    quantization: "Q5_K_M"
-    required_for_base: true
-    strip_reasoning: true
-    overrides:
-      n_ctx: 16384
-      n_gpu_layers: 35
-  qwen3:
-    file: "Qwen3-14B-Q5_K_M.gguf"
-    description: "10.5 ГБ, рассуждает, dense 14B, топ в кодинге и математике, сильные рассуждения и следование инструкциям, высокая фактическая точность, май 2025"
-    quantization: "Q5_K_M"
-    required_for_base: true
-    strip_reasoning: true
-    overrides:
-      n_ctx: 16384
-      n_gpu_layers: 35
-  gemma_3:
-    file: "google_gemma-3-12b-it-Q5_K_S.gguf"
-    description: "8.2 ГБ, рассуждает, dense 12B, сильный в математике, кодинге, мультиязычности и следовании инструкциям, хорошая фактическая точность, март 2025"
-    quantization: "Q5_K_M"
-    required_for_base: true
-    strip_reasoning: true
-    overrides:
-      n_ctx: 16384
-      n_gpu_layers: 35
-  mistral:
-    file: "Mistral-7B-Instruct-v0.3-Q4_K_M.gguf"
-    description: "4.4 ГБ, рассуждает, dense Mistral 7.25B, быстрый, неплохое следование инструкциям, приемлемый код и базовые рассуждения, больше галлюцинаций в фактах, май 2024"
-    quantization: "Q4_K_M"
-    required_for_base: true
-    strip_reasoning: true
-    overrides:
-      n_ctx: 16384
-      n_gpu_layers: 35
-  phi_4:
-    file: "phi-4-Q5_K_M.gguf"
-    description: "10.6 ГБ, рассуждает, dense  14B, phi, один из лучших в математике, кодинге и сложных рассуждениях и следование инструкциям ; высокая фактическая точность , декабрь 2024"
-    quantization: "Q5_K_M"
-    required_for_base: true
-    strip_reasoning: true
-    overrides:
-      n_ctx: 16384
-      n_gpu_layers: 35
-  translategemma:
-    file: "translategemma-12b-it.Q4_K_M.gguf"
-    description: "7.1 ГБ, хорошо переводит, требует специальный системный промпт"
-    quantization: "Q4_K_M"
+    request_style: "openai_chat"
     required_for_base: true
     strip_reasoning: true
     overrides:
       n_ctx: 16384
       n_gpu_layers: 35
 
+  deepseek:
+    file: "DeepSeek-R1-Distill-Llama-8B-Q5_K_M.gguf"
+    huggingface_repo: "deepseek-ai/DeepSeek-R1-Distill-Llama-8B"
+    release_date: "2025-01"
+    parameters_b: 8.0
+    description: "DeepSeek-R1 Distill Llama 8B: distilled reasoning-модель, ориентирована на многошаговые рассуждения, математику и код."
+    quantization: "Q5_K_M"
+    request_style: "openai_chat"
+    required_for_base: true
+    strip_reasoning: true
+    overrides:
+      n_ctx: 16384
+      n_gpu_layers: 35
+
+  gemma_2:
+    file: "gemma-2-9b-it-Q5_K_M.gguf"
+    huggingface_repo: "google/gemma-2-9b-it"
+    release_date: "2024-06"
+    parameters_b: 9.0
+    description: "Gemma 2 9B Instruct: универсальная instruct-модель Google с хорошим балансом качества в QA, summarization и reasoning."
+    quantization: "Q5_K_M"
+    request_style: "openai_chat"
+    required_for_base: true
+    strip_reasoning: true
+    overrides:
+      n_ctx: 16384
+      n_gpu_layers: 35
+
+  qwen3:
+    file: "Qwen3-14B-Q5_K_M.gguf"
+    huggingface_repo: "Qwen/Qwen3-14B"
+    release_date: "2025-05"
+    parameters_b: 14.0
+    description: "Qwen3 14B: мощная многоязычная модель поколения Qwen3, сильна в сложных рассуждениях, code и инструкт-следовании."
+    quantization: "Q5_K_M"
+    request_style: "openai_chat"
+    required_for_base: true
+    strip_reasoning: true
+    overrides:
+      n_ctx: 16384
+      n_gpu_layers: 35
+
+  gemma_3:
+    file: "google_gemma-3-12b-it-Q5_K_S.gguf"
+    huggingface_repo: "google/gemma-3-12b-it"
+    release_date: "2025-03"
+    parameters_b: 12.0
+    description: "Gemma 3 12B Instruct: мультиязычная instruct-модель Google нового поколения с усиленными логикой и кодом."
+    quantization: "Q5_K_M"
+    request_style: "openai_chat"
+    required_for_base: true
+    strip_reasoning: true
+    overrides:
+      n_ctx: 16384
+      n_gpu_layers: 35
+
+  mistral:
+    file: "Mistral-7B-Instruct-v0.3-Q4_K_M.gguf"
+    huggingface_repo: "mistralai/Mistral-7B-Instruct-v0.3"
+    release_date: "2024-05"
+    parameters_b: 7.0
+    description: "Mistral 7B Instruct v0.3: быстрая instruct-модель с хорошей базовой универсальностью и низкими требованиями к ресурсам."
+    quantization: "Q4_K_M"
+    request_style: "openai_chat"
+    required_for_base: true
+    strip_reasoning: true
+    overrides:
+      n_ctx: 16384
+      n_gpu_layers: 35
+
+  phi_4:
+    file: "phi-4-Q5_K_M.gguf"
+    huggingface_repo: "microsoft/phi-4"
+    release_date: "2024-12"
+    parameters_b: 14.0
+    description: "Phi-4: high-capability reasoning-модель Microsoft, фокус на math/code и сложных аналитических задачах."
+    quantization: "Q5_K_M"
+    request_style: "openai_chat"
+    required_for_base: true
+    strip_reasoning: true
+    overrides:
+      n_ctx: 16384
+      n_gpu_layers: 35
+
+  translategemma:
+    file: "translategemma-12b-it.Q4_K_M.gguf"
+    huggingface_repo: "google/translationgemma-2b"
+    release_date: "2025-07"
+    parameters_b: 2.0
+    description: "Translation Gemma: специализированная модель Google для перевода; требует специальный формат payload с source_lang_code/target_lang_code."
+    quantization: "Q4_K_M"
+    request_style: "translategemma"
+    required_for_base: true
+    strip_reasoning: true
+    overrides:
+      n_ctx: 16384
+      n_gpu_layers: 35
