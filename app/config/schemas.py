@@ -40,7 +40,11 @@ class ModelOverrides(BaseModel):
 class ModelDefinition(BaseModel):
     file: str
     description: str = ""
+    huggingface_repo: str = ""
+    release_date: str = ""
+    parameters_b: float | None = Field(default=None, gt=0)
     quantization: Quantization
+    request_style: Literal["openai_chat", "instruct", "translategemma"] = "openai_chat"
     required_for_base: bool = False
     strip_reasoning: bool = True
     overrides: ModelOverrides = Field(default_factory=ModelOverrides)

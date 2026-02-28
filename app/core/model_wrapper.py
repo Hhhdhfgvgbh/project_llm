@@ -39,7 +39,11 @@ class ModelWrapper:
         self._handles: Dict[str, ModelHandle] = {}
 
     def load(
-        self, model_name: str, model_path: Path, runtime: ModelRuntimeConfig
+        self,
+        model_name: str,
+        model_path: Path,
+        runtime: ModelRuntimeConfig,
+        request_style: str = "openai_chat",
     ) -> ModelHandle:
         handle = self._handles.get(model_name)
         if handle and handle.loaded:
@@ -50,7 +54,7 @@ class ModelWrapper:
                 model_name=model_name,
                 model_path=model_path,
                 loaded=True,
-                metadata={"runtime": runtime.__dict__, "backend": "mock"},
+                metadata={"runtime": runtime.__dict__, "backend": "mock", "request_style": request_style},
                 _model=None,
             )
             self._handles[model_name] = handle
@@ -76,7 +80,7 @@ class ModelWrapper:
             model_name=model_name,
             model_path=model_path,
             loaded=True,
-            metadata={"runtime": runtime.__dict__, "backend": "llama_cpp"},
+            metadata={"runtime": runtime.__dict__, "backend": "llama_cpp", "request_style": request_style},
             _model=llm,
         )
         self._handles[model_name] = handle
@@ -105,6 +109,18 @@ class ModelWrapper:
         if handle.metadata.get("backend") == "mock" or handle._model is None:
             short_prompt = prompt.strip().replace("\n", " ")[:160]
             return f"[MOCK:{model_name}] generated response for: {short_prompt}"
+
+        request_style = handle.metadata.get("request_style", "openai_chat")
+
+        if request_style == "instruct":
+            final_prompt = prompt if not system_prompt.strip() else f"{system_prompt.strip()}\n\n{prompt}"
+            response = handle._model(
+                final_prompt,
+                temperature=runtime.temperature,
+                top_p=runtime.top_p,
+                max_tokens=runtime.max_tokens,
+            )
+            return response["choices"][0]["text"].strip()
 
         messages: List[Dict[str, str]] = []
         if system_prompt.strip():
@@ -135,20 +151,32 @@ class ModelWrapper:
         if runtime is None:
             runtime = ModelRuntimeConfig(temperature=0.1, top_p=0.95, max_tokens=2048)
 
-        # ←←← ТОЧНО ТАКАЯ СТРУКТУРА НУЖНА TranslateGemma ←←←
-        messages = [
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "text",
-                        "source_lang_code": source_language,  # ← ключ именно такой
-                        "target_lang_code": target_language,  # ← ключ именно такой
-                        "text": text.strip(),
-                    }
-                ],
-            }
-        ]
+        request_style = handle.metadata.get("request_style", "openai_chat")
+        if request_style == "translategemma":
+            messages = [
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "source_lang_code": source_language,
+                            "target_lang_code": target_language,
+                            "text": text.strip(),
+                        }
+                    ],
+                }
+            ]
+        else:
+            messages = [
+                {
+                    "role": "system",
+                    "content": "You are a professional translation engine. Return only translated text.",
+                },
+                {
+                    "role": "user",
+                    "content": f"Translate from {source_language} to {target_language}:\n\n{text.strip()}",
+                },
+            ]
 
         try:
             response = handle._model.create_chat_completion(
